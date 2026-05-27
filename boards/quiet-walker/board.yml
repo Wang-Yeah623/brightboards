@@ -1,0 +1,26 @@
+name: "安静的走路人"
+emoji: "🌙"
+theme: quiet
+
+to_self:
+  - "焦虑不是我,焦虑只是经过我。"
+  - "我可以慢。慢的人也能到。"
+
+to_strangers:
+  - "你不是一个人在偷偷喘不过气。"
+  - "凌晨三点醒来的那个你,我想让你知道 —— 那不是你软弱,那是你扛得太久了。"
+  - "明天不一定会更好,但你会变得更能接住它。"
+
+tags:
+  - "凌晨三点"
+  - "慢慢来"
+
+link: ""
+
+mood_today: "平静"
+
+song:
+  url: "https://www.w3schools.com/html/horse.mp3"
+  title: "(占位音频 · 你可以换成任何 YouTube / Bilibili / 网易云 / Spotify / SoundCloud / Apple Music / 或一个 mp3 链接)"
+  why: "凌晨三点放着它,我决定: 明天的事,明天再说。"
+

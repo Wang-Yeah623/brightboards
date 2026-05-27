@@ -1,0 +1,167 @@
+---
+import '../styles/global.css';
+
+const { title, description, theme = 'warm' } = Astro.props;
+const SITE_NAME = 'BrightBoards · 心灯墙';
+const TAGLINE = '每个人都是自己人生路上的灯塔,亦愿伸手,托举身旁同行之人。';
+const fullTitle = title ? `${title} — ${SITE_NAME}` : SITE_NAME;
+const desc = description || `${TAGLINE} 一个让每一个走过这里的人都被看见的留言项目。`;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
+---
+<!doctype html>
+<html lang="zh-Hans" data-theme={theme}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={desc} />
+    <meta name="theme-color" content="#fbfaf6" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={desc} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Noto+Serif+SC:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <title>{fullTitle}</title>
+    <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+
+    <script is:inline>
+      // 404 彩蛋: 首次访问首页时,先假装打不开 —— 然后跳出鼓励语
+      // 这段必须在 head 早 fire 以避免 main 内容闪现
+      ;(function () {
+        if (!('localStorage' in window)) return;
+        try {
+          var KEY = 'bb-first-visit-v1';
+          var path = location.pathname.replace(/\/+$/, '');
+          var isHome = path === '' || path === '/index.html';
+          if (isHome && !localStorage.getItem(KEY)) {
+            document.documentElement.classList.add('ee-active');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href={`${base}/`} class="brand">
+        <span class="brand-emoji" aria-hidden="true">✦</span>
+        <span class="brand-name">BrightBoards</span>
+        <span class="brand-sub">· 心灯墙</span>
+      </a>
+      <nav>
+        <a href={`${base}/browse/`}>浏览所有人</a>
+        <a href="https://github.com/Wang-Yeah623/brightboards" target="_blank" rel="noopener">造一块 →</a>
+      </nav>
+    </header>
+
+    <slot />
+
+    <footer class="site-footer fade-up">
+      <p class="footer-tagline serif">{TAGLINE}</p>
+      <p class="muted small footer-meta">
+        MIT ·
+        <a href="https://github.com/Wang-Yeah623/brightboards" target="_blank" rel="noopener">GitHub</a> ·
+        <a href={`${base}/browse/`}>看所有人的板子</a>
+      </p>
+    </footer>
+
+    <script is:inline>
+      // Scroll-triggered fade-up
+      (function () {
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const targets = document.querySelectorAll('.fade-up');
+        if (reduceMotion || !('IntersectionObserver' in window)) {
+          targets.forEach((el) => el.classList.add('in'));
+          return;
+        }
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('in');
+                io.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+        );
+        targets.forEach((el) => io.observe(el));
+      })();
+    </script>
+
+    <style>
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        max-width: 100%;
+        margin: 0;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        backdrop-filter: blur(var(--blur)) saturate(160%);
+        -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+        background: color-mix(in srgb, var(--bg) 72%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+      }
+      .brand {
+        font-family: var(--font-serif);
+        font-weight: 500;
+        font-size: 1.2rem;
+        color: var(--fg);
+        display: inline-flex;
+        gap: 0.4rem;
+        align-items: baseline;
+        letter-spacing: -0.005em;
+        transition: opacity 0.2s;
+      }
+      .brand:hover { text-decoration: none; opacity: 0.7; }
+      .brand-emoji { color: var(--accent); font-family: var(--font-sans); }
+      .brand-name {}
+      .brand-sub { color: var(--muted); font-weight: 400; font-size: 0.92rem; }
+      nav { display: flex; gap: 1.5rem; font-size: 0.92rem; }
+      nav a { color: var(--muted); }
+      nav a:hover { color: var(--accent); }
+      .site-footer {
+        text-align: center;
+        padding: 4rem 1.5rem 3rem;
+        margin-top: 5rem;
+        position: relative;
+      }
+      .site-footer::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 64px;
+        height: 1px;
+        background: var(--line);
+      }
+      .footer-tagline {
+        font-style: italic;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.85;
+        margin: 0.5rem auto 1.25rem;
+        max-width: 30em;
+        letter-spacing: 0.01em;
+      }
+      .footer-meta {
+        font-family: var(--font-sans);
+      }
+      .footer-meta a { color: var(--muted); }
+      .footer-meta a:hover { color: var(--accent); }
+    </style>
+  </body>
+</html>

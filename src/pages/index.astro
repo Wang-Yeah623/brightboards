@@ -1,0 +1,297 @@
+---
+import Layout from '../components/Layout.astro';
+import BoardCard from '../components/BoardCard.astro';
+import { getAllBoards } from '../lib/boards.js';
+
+const all = getAllBoards();
+const total = all.length;
+const featured = all.slice(0, 3);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
+---
+<Layout>
+  <main>
+    <section class="hero">
+      <p class="hero-tagline fade-up serif">
+        <span>每个人都是自己人生路上的灯塔</span>
+        <br />
+        <span class="line-2">亦愿伸手, 托举身旁同行之人</span>
+      </p>
+
+      <h1 class="fade-up" data-delay="1">
+        <span class="word">愿你能在这里</span>
+        <br />
+        <span class="word accent-word">被一句话点亮</span>
+      </h1>
+
+      <p class="lede fade-up" data-delay="2">
+        也愿你成为别人的那一句话。<br />
+        BrightBoards 是一面共享的留言墙 —— 每个人在仓库里都有自己的一块画板,
+        写一句给自己的话, 写一句给陌生人的话。
+      </p>
+
+      <div class="cta fade-up" data-delay="3">
+        <a href={`${base}/browse/`} class="btn">
+          看 {total} 块已经点亮的画板 →
+        </a>
+        <a href="https://github.com/Wang-Yeah623/brightboards" target="_blank" rel="noopener" class="btn ghost">
+          造一块属于你的
+        </a>
+      </div>
+    </section>
+
+    {featured.length > 0 && (
+      <section class="featured">
+        <h2 class="section-head fade-up">此刻被翻到的几块板子</h2>
+        {featured.map((b, i) => (
+          <div class="fade-up" data-delay={String(((i) % 3) + 1)}>
+            <BoardCard board={b} />
+          </div>
+        ))}
+        {total > featured.length && (
+          <p class="more-link fade-up">
+            <a href={`${base}/browse/`}>看全部 {total} 块 →</a>
+          </p>
+        )}
+      </section>
+    )}
+
+    <section class="why">
+      <h2 class="section-head fade-up">这是为什么</h2>
+      <div class="prose fade-up" data-delay="1">
+        <p>
+          在这个技术越来越内卷、AI 越来越发达、"想进步又无从进步" 的时代,
+          我们很容易把自己活成一组指标 —— commit 数、followers、Star 数、KPI、绩效。
+          慢慢地, 连 "我还好吗" 这个最基本的问题都不会问自己了。
+        </p>
+        <p class="quote-line serif">
+          给每一个走过这里的人, 一块属于自己的小小画板。
+        </p>
+        <ul class="how">
+          <li>
+            写一句 <strong>给自己</strong> 的话 —— 当你又开始内耗的时候, 回来读它一遍
+          </li>
+          <li>
+            写一句 <strong>给陌生人</strong> 的话 —— 给一个你永远不会认识的人, 一点点光
+          </li>
+        </ul>
+        <p>
+          每一次新的 PR 合并, 就是又一个人在世界的某个角落悄悄说:
+        </p>
+        <p class="whisper serif">
+          "我在这里, 我也在挣扎, 但我愿意伸出一只手。"
+        </p>
+      </div>
+    </section>
+
+    <section class="how-to-join">
+      <h2 class="section-head fade-up">怎么参与 · 5 分钟</h2>
+      <ol class="fade-up" data-delay="1">
+        <li>Fork <a href="https://github.com/Wang-Yeah623/brightboards" target="_blank" rel="noopener">这个仓库</a></li>
+        <li>在 <code>boards/</code> 下建一个文件夹 (用你的 GitHub 用户名)</li>
+        <li>把 <code>_template.yml</code> 复制进去, 重命名为 <code>board.yml</code></li>
+        <li>写两句话 —— 一句给自己, 一句给陌生人</li>
+        <li>提 Pull Request</li>
+      </ol>
+      <p class="muted small fade-up" data-delay="2">
+        合并后, 你的画板会自动出现在这里, 你也会拥有一个专属页面。完整流程见
+        <a href="https://github.com/Wang-Yeah623/brightboards/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a>。
+      </p>
+    </section>
+
+    <section class="closing fade-up">
+      <p class="closing-dash">—— 致此刻正在看这段文字的你 ——</p>
+      <p class="ending serif">你来到这里, 本身就是了不起的事。</p>
+    </section>
+  </main>
+
+  <!-- 404 彩蛋 overlay - 只在 ee-active 时显示(首次访问首页) -->
+  <div id="ee-overlay" aria-hidden="true">
+    <div id="ee-stage">
+      <p class="ee-404">404</p>
+      <p class="ee-hint">这个页面可能已经被移走了…</p>
+    </div>
+  </div>
+
+  <script is:inline>
+    ;(function () {
+      if (!document.documentElement.classList.contains('ee-active')) return;
+      var KEY = 'bb-first-visit-v1';
+      var overlay = document.getElementById('ee-overlay');
+      var stage = document.getElementById('ee-stage');
+      if (!overlay || !stage) return;
+
+      // Phase 1 → Phase 2 切换 (2.4s 后)
+      setTimeout(function () {
+        stage.classList.add('fading');
+        setTimeout(function () {
+          stage.innerHTML =
+            '<p class="ee-reveal">怎么, 以为打不开了?<br/>' +
+            '哈哈, 没关系的。<br/>' +
+            '遇到困难, 再试一下不就可能成功了吗?</p>' +
+            '<p class="ee-encourage">加油喔 ✦</p>';
+          stage.classList.remove('fading');
+        }, 700);
+      }, 2400);
+
+      // 整体淡出 (7s 后)
+      setTimeout(function () {
+        overlay.classList.add('done');
+        document.documentElement.classList.remove('ee-active');
+        try { localStorage.setItem(KEY, '1'); } catch (e) {}
+        setTimeout(function () { overlay.remove(); }, 1300);
+      }, 7000);
+    })();
+  </script>
+</Layout>
+
+<style>
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2.5rem;
+  }
+  .hero-tagline {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+    line-height: 2.1;
+    margin-bottom: 2rem;
+  }
+  .hero-tagline .line-2 {
+    display: inline-block;
+    margin-top: 0.25rem;
+  }
+  .hero h1 {
+    font-size: 3.5rem;
+    margin: 0.5rem 0 1.5rem;
+    line-height: 1.1;
+    font-weight: 500;
+    letter-spacing: -0.035em;
+  }
+  .hero h1 .word {
+    display: inline-block;
+  }
+  .hero h1 .accent-word {
+    background: linear-gradient(110deg, var(--accent) 30%, var(--glow-2) 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2.3rem; }
+    .hero-tagline { font-size: 0.95rem; letter-spacing: 0.08em; }
+  }
+  .lede {
+    font-size: 1.08rem;
+    color: var(--muted);
+    max-width: 32em;
+    margin: 0 auto 2rem;
+    line-height: 1.85;
+  }
+  .cta {
+    display: flex;
+    gap: 0.85rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-block;
+    padding: 0.85rem 1.6rem;
+    background: var(--accent);
+    color: white !important;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: opacity 0.2s, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .btn:hover {
+    opacity: 0.95;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .btn.ghost {
+    background: transparent;
+    color: var(--accent) !important;
+    border: 1.5px solid var(--accent-soft);
+    box-shadow: none;
+  }
+  .btn.ghost:hover {
+    background: var(--accent-bg);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+
+  .section-head {
+    font-family: var(--font-sans);
+    font-size: 0.76rem;
+    color: var(--muted);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 600;
+    margin: 4rem 0 1.75rem;
+  }
+  .featured { margin-top: 4rem; }
+  .more-link {
+    text-align: right;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .prose p { line-height: 1.85; }
+  .quote-line {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    color: var(--fg);
+    font-size: 1.35rem;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1.5;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin: 2rem 0;
+  }
+  ul.how { padding-left: 1.3rem; }
+  ul.how li { margin: 0.5rem 0; line-height: 1.8; }
+  .whisper {
+    color: var(--accent);
+    font-style: italic;
+    font-size: 1.15rem;
+    text-align: center;
+    margin: 1.5rem 0;
+    line-height: 1.7;
+  }
+
+  .how-to-join ol { padding-left: 1.5rem; }
+  .how-to-join li { margin: 0.55rem 0; line-height: 1.7; }
+  .how-to-join code {
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 0.12rem 0.5rem;
+    border-radius: 5px;
+    font-size: 0.88em;
+    font-family: var(--font-mono);
+  }
+
+  .closing {
+    margin-top: 5rem;
+    padding: 2.5rem 0 1rem;
+    text-align: center;
+    color: var(--muted);
+  }
+  .closing-dash {
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .closing .ending {
+    font-size: 1.4rem;
+    color: var(--fg);
+    margin-top: 1rem;
+    font-style: italic;
+    line-height: 1.6;
+  }
+</style>

@@ -1,0 +1,90 @@
+---
+import Layout from '../components/Layout.astro';
+import BoardCard from '../components/BoardCard.astro';
+import { getAllBoards } from '../lib/boards.js';
+
+const boards = getAllBoards();
+const total = boards.length;
+---
+<Layout title="所有画板">
+  <main>
+    <header class="page-head">
+      <p class="page-tagline serif fade-up">每个人都是自己人生路上的灯塔</p>
+      <h1 class="fade-up" data-delay="1">所有人的画板</h1>
+      <p class="muted fade-up" data-delay="2">
+        {total} 个人, 在这里留下了自己的一句话。
+        <br />
+        随便往下翻 —— 总有一句会戳到你。
+      </p>
+    </header>
+
+    <div class="grid">
+      {boards.map((b, i) => (
+        <div class="fade-up" data-delay={String((i % 4) + 1)}>
+          <BoardCard board={b} />
+        </div>
+      ))}
+    </div>
+
+    <aside class="cta-bottom fade-up">
+      <p class="cta-text serif">看不到你自己的板子?</p>
+      <p>
+        <a href="https://github.com/Wang-Yeah623/brightboards" target="_blank" rel="noopener" class="btn-soft">
+          来加一块 →
+        </a>
+      </p>
+    </aside>
+  </main>
+</Layout>
+
+<style>
+  .page-head {
+    text-align: center;
+    margin: 1.5rem 0 3rem;
+  }
+  .page-tagline {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 0.95rem;
+    letter-spacing: 0.12em;
+    line-height: 1.8;
+    margin-bottom: 0.75rem;
+  }
+  .page-head h1 {
+    font-size: 2.5rem;
+    margin: 0.25rem 0 0.75rem;
+  }
+  @media (max-width: 600px) {
+    .page-head h1 { font-size: 1.9rem; }
+  }
+  .cta-bottom {
+    text-align: center;
+    padding: 4rem 0 1rem;
+    color: var(--muted);
+  }
+  .cta-bottom p { margin: 0.5rem 0; }
+  .cta-text {
+    font-style: italic;
+    font-size: 1.2rem;
+    color: var(--fg);
+    margin-bottom: 1rem;
+  }
+  .btn-soft {
+    display: inline-block;
+    padding: 0.7rem 1.5rem;
+    background: var(--accent-bg);
+    color: var(--accent) !important;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.25s, color 0.25s, transform 0.25s,
+                box-shadow 0.25s;
+  }
+  .btn-soft:hover {
+    background: var(--accent);
+    color: white !important;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+</style>

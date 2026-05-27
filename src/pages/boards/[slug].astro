@@ -1,0 +1,360 @@
+---
+import Layout from '../../components/Layout.astro';
+import { getAllBoards, getBoardBySlug } from '../../lib/boards.js';
+import { detectMedia } from '../../lib/embed.js';
+
+export function getStaticPaths() {
+  const all = getAllBoards();
+  return all.map((b) => ({ params: { slug: b.slug } }));
+}
+
+const { slug } = Astro.params;
+const board = getBoardBySlug(slug);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
+const songMedia = board.song ? detectMedia(board.song.url) : null;
+---
+<Layout
+  title={board.name}
+  theme={board.theme}
+  description={board.to_strangers[0] || board.to_self[0]}
+>
+  <main>
+    <article class="full-board">
+      <header class="head">
+        <div class="big-emoji-wrap fade-up">
+          <span class="big-emoji" aria-hidden="true">{board.emoji}</span>
+        </div>
+        <h1 class="fade-up" data-delay="1">{board.name}</h1>
+        {board.tags && board.tags.length > 0 && (
+          <div class="tags fade-up" data-delay="2">
+            {board.tags.map((t) => <span class="tag">#{t}</span>)}
+          </div>
+        )}
+        {board.mood_today && (
+          <p class="mood fade-up" data-delay="2">
+            <span class="mood-label">写下这块板子那天的心情</span>
+            <span class="mood-value">{board.mood_today}</span>
+          </p>
+        )}
+      </header>
+
+      {board.to_self.length > 0 && (
+        <section class="block">
+          <h2 class="block-head fade-up">给自己</h2>
+          <div class="quotes">
+            {board.to_self.map((text, i) => (
+              <blockquote class="quote self fade-up" data-delay={String((i % 3) + 1)}>
+                <p>{text}</p>
+              </blockquote>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {board.image && (
+        <figure class="board-image fade-up">
+          <img
+            src={board.image.src}
+            alt={board.image.alt || `${board.name} 留下的一张图`}
+            loading="lazy"
+          />
+          {board.image.alt && (
+            <figcaption class="serif">{board.image.alt}</figcaption>
+          )}
+        </figure>
+      )}
+
+      {board.to_strangers.length > 0 && (
+        <section class="block">
+          <h2 class="block-head fade-up">
+            <span>给你</span>
+            <span class="block-sub">— 这个我永远不会认识, 但今天恰好走到这里的你</span>
+          </h2>
+          <div class="quotes">
+            {board.to_strangers.map((text, i) => (
+              <blockquote class="quote stranger fade-up" data-delay={String((i % 3) + 1)}>
+                <p>{text}</p>
+              </blockquote>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {board.song && songMedia && (
+        <aside class="board-song fade-up">
+          <h2 class="block-head">
+            <span>{board.name} 留下的一首歌</span>
+            {board.song.title && <span class="block-sub">{board.song.title}</span>}
+          </h2>
+
+          <div class="player-wrap">
+            {songMedia.kind === 'iframe' && songMedia.fixedSize ? (
+              <iframe
+                src={songMedia.embedSrc}
+                width={songMedia.fixedSize.width}
+                height={songMedia.fixedSize.height}
+                frameborder="0"
+                loading="lazy"
+                title={`${board.name} 选的歌 (${songMedia.label})`}
+              />
+            ) : songMedia.kind === 'iframe' ? (
+              <div class="iframe-frame" style={`aspect-ratio: ${songMedia.aspect};`}>
+                <iframe
+                  src={songMedia.embedSrc}
+                  frameborder="0"
+                  allow="autoplay; encrypted-media; fullscreen"
+                  allowfullscreen
+                  loading="lazy"
+                  title={`${board.name} 选的歌 (${songMedia.label})`}
+                />
+              </div>
+            ) : (
+              <audio controls preload="metadata" src={songMedia.audioSrc}>
+                你的浏览器不支持音频播放, <a href={songMedia.audioSrc}>点这里下载</a>
+              </audio>
+            )}
+          </div>
+
+          {board.song.why && (
+            <blockquote class="song-why">
+              <p class="serif">"{board.song.why}"</p>
+            </blockquote>
+          )}
+
+          <p class="song-source muted small">
+            来自 <a href={songMedia.originalUrl} target="_blank" rel="noopener nofollow">{songMedia.label} →</a>
+          </p>
+        </aside>
+      )}
+
+      {board.link && (
+        <p class="link-row fade-up">
+          <a href={board.link} target="_blank" rel="noopener nofollow">{board.link} →</a>
+        </p>
+      )}
+
+      <footer class="board-footer fade-up">
+        <hr />
+        <p class="muted">
+          这是 <strong>{board.name}</strong> 留下的画板。
+          <br />
+          如果它点亮了你今天的某一刻, 也欢迎你
+          <a href="https://github.com/Wang-Yeah623/brightboards" target="_blank" rel="noopener">为自己造一块</a>。
+        </p>
+        <p>
+          <a href={`${base}/browse/`}>← 看所有人的画板</a>
+        </p>
+      </footer>
+    </article>
+  </main>
+</Layout>
+
+<style>
+  .full-board { padding: 1rem 0; }
+  .head { text-align: center; margin-bottom: 3.5rem; }
+  .big-emoji-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+  .big-emoji {
+    font-size: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 5.5rem;
+    height: 5.5rem;
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--card-border);
+    border-radius: 50%;
+    line-height: 1;
+    box-shadow: var(--shadow-soft);
+    animation: breathe 6s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .big-emoji { animation: none; }
+  }
+  .head h1 {
+    font-size: 2.6rem;
+    margin: 0.5rem 0 0.75rem;
+    font-weight: 500;
+  }
+  @media (max-width: 600px) {
+    .head h1 { font-size: 2rem; }
+  }
+  .tags {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 0.75rem 0;
+  }
+  .tag {
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 0.22rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .mood { margin-top: 1rem; font-size: 0.88rem; }
+  .mood-label { color: var(--muted); }
+  .mood-value {
+    color: var(--fg);
+    font-weight: 600;
+    margin-left: 0.4rem;
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+
+  .block { margin: 3.5rem 0; }
+  .block-head {
+    font-family: var(--font-sans);
+    font-size: 0.76rem;
+    color: var(--muted);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 600;
+    margin: 0 0 2rem;
+  }
+  .block-sub {
+    text-transform: none;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    font-weight: 400;
+    display: block;
+    margin-top: 0.45rem;
+    font-size: 0.82rem;
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+
+  .quotes { display: flex; flex-direction: column; gap: 0.9rem; }
+  .quote {
+    margin: 0;
+    padding: 1.5rem 1.85rem;
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--accent-soft);
+    border-radius: 0 16px 16px 0;
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.3s;
+  }
+  .quote:hover {
+    transform: translateX(4px);
+    box-shadow: var(--shadow-hover);
+  }
+  .quote p {
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.8;
+    font-family: var(--font-serif);
+  }
+  .self p { color: var(--fg); }
+  .stranger {
+    border-left-color: var(--accent);
+    background: color-mix(in srgb, var(--accent-bg) 80%, var(--card-bg));
+  }
+  .stranger p { color: var(--accent); font-weight: 500; }
+
+  /* Image block */
+  .board-image {
+    margin: 3rem 0;
+    text-align: center;
+  }
+  .board-image img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: 20px;
+    border: 1px solid var(--card-border);
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.5s;
+  }
+  .board-image img:hover {
+    transform: scale(1.015);
+    box-shadow: var(--shadow-hover);
+  }
+  .board-image figcaption {
+    margin-top: 0.9rem;
+    color: var(--muted);
+    font-size: 0.92rem;
+    font-style: italic;
+    line-height: 1.6;
+  }
+
+  /* Song block */
+  .board-song {
+    margin: 3.5rem 0;
+    padding: 0;
+  }
+  .player-wrap {
+    margin: 1.5rem auto;
+    display: flex;
+    justify-content: center;
+  }
+  .iframe-frame {
+    width: 100%;
+    max-width: 580px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--card-border);
+    background: var(--bg-alt);
+  }
+  .iframe-frame iframe,
+  .player-wrap > iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+  .player-wrap audio {
+    width: 100%;
+    max-width: 480px;
+  }
+  .song-why {
+    margin: 1.5rem auto 0;
+    max-width: 32em;
+    padding: 0 1rem;
+    text-align: center;
+  }
+  .song-why p {
+    color: var(--accent);
+    font-size: 1.08rem;
+    font-style: italic;
+    line-height: 1.7;
+  }
+  .song-source {
+    text-align: center;
+    margin-top: 0.85rem;
+  }
+  .song-source a { color: var(--muted); }
+  .song-source a:hover { color: var(--accent); }
+
+  .link-row {
+    text-align: center;
+    margin: 2.5rem 0 1rem;
+    font-size: 0.95rem;
+  }
+  .board-footer { margin-top: 4.5rem; text-align: center; }
+  .board-footer hr {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 2rem auto;
+    width: 60px;
+  }
+  .board-footer p { margin: 0.6rem 0; }
+</style>
