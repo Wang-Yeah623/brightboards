@@ -6,14 +6,7 @@ const boards = getAllBoards();
 const total = boards.length;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
 
-// 把所有画板按 ~3 张一组分到不同的"绳子"上
-const PER_ROPE = 3;
-const ropes = [];
-for (let i = 0; i < boards.length; i += PER_ROPE) {
-  ropes.push(boards.slice(i, i + PER_ROPE));
-}
-
-// 用 slug 算 deterministic 的 hash 决定每张卡的样式
+// deterministic hash by slug
 function hash(s) {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
@@ -23,82 +16,118 @@ function hash(s) {
   return Math.abs(h);
 }
 
-const SHAPES = ['rect', 'rect', 'rect', 'rect', 'tag', 'note']; // 偏 rect
-const CLIPS = ['wood', 'wood', 'wood', 'metal', 'pin']; // 偏木夹
+const SHAPES = ['rect', 'rect', 'rect', 'rect', 'tag', 'note'];
+const CLIPS = ['wood', 'wood', 'wood', 'metal', 'pin'];
 
-function styleFor(board) {
+// 在 viewport 范围内的 grid + jitter,所有卡片单屏可见
+const N = boards.length;
+const COLS = N <= 3 ? N : N <= 6 ? 3 : N <= 9 ? 3 : 4;
+const ROWS = Math.max(1, Math.ceil(N / COLS));
+
+// Wall 内容区域(留 margin 避免 cards 顶到边缘)
+const X_MIN = 12, X_MAX = 88;
+const Y_MIN = 18, Y_MAX = 86;
+
+function placeCard(board, idx) {
   const h = hash(board.slug);
-  const rotate = (((h % 80) / 10) - 4).toFixed(2); // -4 ~ +4 deg
-  const yOffset = ((h >> 2) % 28) - 14; // -14 ~ 14 px
-  const shape = SHAPES[h % SHAPES.length];
-  const clip = CLIPS[(h >> 3) % CLIPS.length];
-  const clipOffset = (((h >> 5) % 36) - 18); // -18% ~ 18% from card center
-  return { rotate, yOffset, shape, clip, clipOffset };
-}
----
-<Layout title="所有画板">
-  <div class="wall-bg"></div>
-  <main class="wall">
-    <header class="wall-head">
-      <p class="page-tagline serif fade-up">每个人都是自己人生路上的灯塔</p>
-      <h1 class="fade-up" data-delay="1">所有人的画板</h1>
-      <p class="muted fade-up" data-delay="2">
-        {total} 张挂在墙上 —— 一张写给自己,一张写给陌生人。<br />
-        每张都是一个真实的人, 在某个深夜, 把心里那一句话, 留在了这里。
-      </p>
-    </header>
+  const col = idx % COLS;
+  const row = Math.floor(idx / COLS);
 
-    {ropes.map((ropeBoards, ri) => (
-      <section class="rope-row fade-up" data-delay={String(((ri) % 4) + 1)}>
-        <svg class="rope-svg" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true">
-          <path
-            d="M0,2 Q25,5.5 50,4.5 T100,2"
-            stroke="currentColor"
-            stroke-width="0.35"
-            fill="none"
-            stroke-linecap="round"
-          />
-        </svg>
-        <div class="rope-cards">
-          {ropeBoards.map((board) => {
-            const s = styleFor(board);
-            const firstStranger = board.to_strangers[0] || board.to_self[0] || '';
-            const tagList = (board.tags || []).slice(0, 2);
-            return (
-              <a
-                href={`${base}/boards/${board.slug}/`}
-                class={`hcard hcard-${s.shape}`}
-                data-theme={board.theme}
-                style={`--rotate: ${s.rotate}deg; --y: ${s.yOffset}px; --clip-offset: ${s.clipOffset}%;`}
-                aria-label={`看 ${board.name} 的画板`}
-              >
-                <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
-                <div class="hcard-inner">
-                  <span class="hcard-emoji" aria-hidden="true">{board.emoji}</span>
-                  <h3 class="hcard-name">{board.name}</h3>
-                  <p class="hcard-text">{firstStranger}</p>
-                  {tagList.length > 0 && (
-                    <p class="hcard-tags">{tagList.map((t) => `#${t}`).join('  ')}</p>
-                  )}
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      </section>
+  // base position
+  const baseX = X_MIN + ((col + 0.5) / COLS) * (X_MAX - X_MIN);
+  const baseY = Y_MIN + ((row + 0.5) / ROWS) * (Y_MAX - Y_MIN);
+
+  // jitter, scale down if many cards
+  const jitterScale = COLS >= 4 ? 0.6 : 1;
+  const jitterX = (((h % 14) - 7)) * jitterScale;
+  const jitterY = ((((h >> 4) % 12) - 6)) * jitterScale;
+
+  // size: prefer m, sometimes s/l
+  const sizes = ['s', 'm', 'm', 'm', 'l'];
+  const sizeClass = sizes[(h >> 12) % sizes.length];
+
+  return {
+    x: baseX + jitterX,
+    y: baseY + jitterY,
+    rotate: (((h >> 8) % 80) / 10 - 4).toFixed(2),
+    sizeClass,
+    shape: SHAPES[h % SHAPES.length],
+    clip: CLIPS[(h >> 3) % CLIPS.length],
+    clipOffset: (((h >> 5) % 36) - 18),
+  };
+}
+
+// Rope rows
+const ropeYs = [];
+for (let r = 0; r < ROWS; r++) {
+  ropeYs.push(Y_MIN + ((r + 0.5) / ROWS) * (Y_MAX - Y_MIN) - 6);
+}
+
+const placedBoards = boards.map((b, i) => ({ board: b, place: placeCard(b, i) }));
+---
+<Layout title="所有画板" noFooter>
+  <div class="wall-bg"></div>
+
+  <div class="wall-immersive" data-cols={COLS} data-rows={ROWS}>
+    {/* 浮动标题 */}
+    <div class="wall-title">
+      <p class="page-tagline serif">每个人都是自己人生路上的灯塔</p>
+      <h1>所有人的画板</h1>
+      <p class="title-meta muted small">{total} 张挂在墙上 · 一张写给自己, 一张写给陌生人</p>
+    </div>
+
+    {/* 绳子 */}
+    {ropeYs.map((y) => (
+      <svg
+        class="rope-line"
+        style={`top: ${y}%`}
+        viewBox="0 0 100 6"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M0,2 Q25,5.5 50,4.5 T100,2"
+          stroke="currentColor"
+          stroke-width="0.3"
+          fill="none"
+          stroke-linecap="round"
+        />
+      </svg>
     ))}
 
-    <aside class="wall-footer fade-up">
-      <p class="footer-line serif">这面墙还有地方,等你也挂一张。</p>
-      <a href={`${base}/create/`} class="footer-btn">
-        挂一张属于你的 →
-      </a>
-    </aside>
-  </main>
+    {/* 卡片 */}
+    {placedBoards.map(({ board, place }, i) => {
+      const firstStranger = board.to_strangers[0] || board.to_self[0] || '';
+      const tagList = (board.tags || []).slice(0, 2);
+      return (
+        <a
+          href={`${base}/boards/${board.slug}/`}
+          class={`hcard hcard-${place.shape} hcard-size-${place.sizeClass}`}
+          data-theme={board.theme}
+          style={`top: ${place.y}%; left: ${place.x}%; --rotate: ${place.rotate}deg; --clip-offset: ${place.clipOffset}%; --enter-delay: ${i * 0.08}s;`}
+          aria-label={`看 ${board.name} 的画板`}
+        >
+          <span class={`hcard-clip hcard-clip-${place.clip}`} aria-hidden="true"></span>
+          <span class="hcard-emoji" aria-hidden="true">{board.emoji}</span>
+          <h3 class="hcard-name">{board.name}</h3>
+          <p class="hcard-text">{firstStranger}</p>
+          {tagList.length > 0 && (
+            <p class="hcard-tags">{tagList.map((t) => `#${t}`).join('  ')}</p>
+          )}
+        </a>
+      );
+    })}
+
+    {/* 浮动 CTA */}
+    <a href={`${base}/create/`} class="wall-cta">
+      <span class="wall-cta-line">这面墙还有地方</span>
+      <span class="wall-cta-main">挂一张属于你的 →</span>
+    </a>
+  </div>
 </Layout>
 
 <style>
-  /* ─── 整面墙背景: 暖灰白 + 窗影 ─────────────────────── */
+  /* ─── 墙面背景 ────────────────────────────────────── */
   .wall-bg {
     position: fixed;
     inset: 0;
@@ -114,7 +143,7 @@ function styleFor(board) {
     inset: 0;
     background:
       linear-gradient(115deg, transparent 25%, rgba(255, 250, 235, 0.5) 32%, rgba(255, 250, 235, 0.5) 38%, transparent 45%),
-      linear-gradient(115deg, transparent 55%, rgba(255, 250, 235, 0.35) 62%, transparent 70%);
+      linear-gradient(115deg, transparent 55%, rgba(255, 250, 235, 0.32) 62%, transparent 70%);
     pointer-events: none;
   }
   @media (prefers-color-scheme: dark) {
@@ -122,142 +151,164 @@ function styleFor(board) {
     .wall-bg::after { background: linear-gradient(115deg, transparent 30%, rgba(255, 240, 200, 0.05) 38%, transparent 48%); }
   }
 
-  /* ─── 主容器 ───────────────────────────────────────── */
-  .wall {
-    max-width: 1180px !important;
-    padding: 2rem 1.25rem 6rem !important;
+  /* ─── Wall 容器: 占满 viewport,不滚动 ────────────── */
+  .wall-immersive {
     position: relative;
-  }
-  @media (min-width: 768px) {
-    .wall { padding: 3rem 2rem 6rem !important; }
+    width: 100vw;
+    height: calc(100vh - 70px);
+    /* break out of any parent max-width */
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    overflow: hidden;
   }
 
-  .wall-head {
-    text-align: center;
-    margin: 1rem auto 4rem;
-    max-width: 38em;
+  /* ─── 浮动标题(左上角) ──────────────────────────── */
+  .wall-title {
+    position: absolute;
+    top: 1.25rem;
+    left: 2rem;
+    z-index: 10;
+    max-width: 26em;
+    pointer-events: none;
   }
   .page-tagline {
     font-style: italic;
     color: #8a7553;
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     letter-spacing: 0.12em;
-    margin-bottom: 0.75rem;
+    margin: 0 0 0.3rem;
   }
-  .wall-head h1 {
-    font-size: 2.5rem;
-    margin: 0.25rem 0 1rem;
+  .wall-title h1 {
+    font-size: 1.6rem;
+    margin: 0 0 0.3rem;
     font-weight: 500;
     color: #3d2f18;
+    letter-spacing: -0.005em;
   }
-  .wall-head .muted { color: #6e5836; }
-  @media (max-width: 600px) {
-    .wall-head h1 { font-size: 2rem; }
+  .title-meta {
+    color: #6e5836 !important;
+    margin: 0;
+    font-size: 0.8rem;
   }
 
-  /* ─── 绳子行 ───────────────────────────────────────── */
-  .rope-row {
-    position: relative;
-    margin: 4.5rem 0 5.5rem;
-    padding-top: 0.5rem;
-  }
-  .rope-svg {
+  /* ─── 绳子 ─────────────────────────────────────── */
+  .rope-line {
     position: absolute;
-    top: 0;
     left: -3%;
     width: 106%;
-    height: 28px;
+    height: 32px;
     color: #6e5630;
     opacity: 0.55;
-    z-index: 0;
-    overflow: visible;
-  }
-
-  .rope-cards {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-evenly;
-    align-items: flex-start;
-    gap: 1.75rem 1rem;
-    margin-top: 0;
-    position: relative;
     z-index: 1;
+    overflow: visible;
+    pointer-events: none;
   }
 
-  /* ─── 单张挂卡 ──────────────────────────────────────── */
+  /* ─── 单张挂卡 ──────────────────────────────────── */
   .hcard {
-    position: relative;
-    display: block;
-    width: 230px;
-    min-height: 250px;
-    padding: 2.2rem 1.5rem 1.5rem;
+    position: absolute;
+    transform: translate(-50%, -50%) rotate(var(--rotate, 0deg));
+    transform-origin: center top;
     color: #2d2418;
     text-decoration: none !important;
     background: #fbf6e6;
     background-image:
       radial-gradient(circle at 13% 27%, rgba(160, 130, 80, 0.05) 0.5px, transparent 1px),
       radial-gradient(circle at 73% 81%, rgba(160, 130, 80, 0.04) 0.5px, transparent 1px),
-      radial-gradient(circle at 47% 56%, rgba(160, 130, 80, 0.04) 0.5px, transparent 1px),
-      radial-gradient(circle at 33% 78%, rgba(160, 130, 80, 0.03) 0.4px, transparent 1px);
-    background-size: 16px 16px, 24px 24px, 11px 11px, 19px 19px;
+      radial-gradient(circle at 47% 56%, rgba(160, 130, 80, 0.04) 0.5px, transparent 1px);
+    background-size: 16px 16px, 24px 24px, 11px 11px;
     box-shadow:
       0 1px 0 rgba(0, 0, 0, 0.04),
       0 4px 9px rgba(80, 50, 20, 0.1),
       0 14px 26px rgba(80, 50, 20, 0.12);
-    transform: translateY(var(--y, 0)) rotate(var(--rotate, 0deg));
-    transform-origin: top center;
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-                box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    margin-top: 18px;
+                box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                z-index 0s linear 0.4s;
+    opacity: 0;
+    animation: hcard-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--enter-delay, 0s) forwards;
+    z-index: 2;
   }
+
+  @keyframes hcard-in {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -40%) rotate(var(--rotate, 0deg));
+    }
+    100% {
+      opacity: 1;
+      transform: translate(-50%, -50%) rotate(var(--rotate, 0deg));
+    }
+  }
+
   .hcard:hover {
-    transform: translateY(calc(var(--y, 0px) - 4px)) rotate(0deg);
+    transform: translate(-50%, calc(-50% - 6px)) rotate(0deg);
     box-shadow:
       0 2px 0 rgba(0, 0, 0, 0.05),
       0 12px 22px rgba(80, 50, 20, 0.15),
       0 24px 44px rgba(80, 50, 20, 0.18);
-    z-index: 10;
+    z-index: 100;
+    transition-delay: 0s;
   }
 
-  /* ─── 卡片内容 ──────────────────────────────────────── */
-  .hcard-inner { position: relative; z-index: 1; }
-  .hcard-emoji {
-    font-size: 1.6rem;
-    display: block;
-    margin-bottom: 0.55rem;
+  /* 卡片 sizes */
+  .hcard-size-s {
+    width: 150px;
+    padding: 1.4rem 1rem 1rem;
   }
+  .hcard-size-m {
+    width: 185px;
+    padding: 1.6rem 1.15rem 1.15rem;
+  }
+  .hcard-size-l {
+    width: 220px;
+    padding: 1.85rem 1.4rem 1.3rem;
+  }
+
+  /* ─── 卡片内容 ──────────────────────────────────── */
+  .hcard-emoji {
+    font-size: 1.4rem;
+    display: block;
+    margin-bottom: 0.45rem;
+  }
+  .hcard-size-s .hcard-emoji { font-size: 1.2rem; }
+  .hcard-size-l .hcard-emoji { font-size: 1.55rem; }
+
   .hcard-name {
     font-family: var(--font-serif);
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 500;
-    margin: 0 0 0.8rem;
+    margin: 0 0 0.65rem;
     color: #2d2418;
-    letter-spacing: -0.005em;
     line-height: 1.3;
   }
+  .hcard-size-s .hcard-name { font-size: 0.95rem; }
+  .hcard-size-l .hcard-name { font-size: 1.15rem; }
+
   .hcard-text {
     font-family: var(--font-hand);
-    font-size: 1.18rem;
-    line-height: 1.85;
+    font-size: 1.05rem;
+    line-height: 1.75;
     color: #4d381a;
-    margin: 0 0 0.85rem;
+    margin: 0 0 0.65rem;
     display: -webkit-box;
-    -webkit-line-clamp: 5;
-    line-clamp: 5;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+  .hcard-size-s .hcard-text { font-size: 0.95rem; -webkit-line-clamp: 3; line-clamp: 3; }
+  .hcard-size-l .hcard-text { font-size: 1.15rem; -webkit-line-clamp: 5; line-clamp: 5; }
+
   .hcard-tags {
     font-family: var(--font-serif);
     font-style: italic;
-    font-size: 0.82rem;
+    font-size: 0.75rem;
     color: #8a6c3e;
     margin: 0;
     opacity: 0.85;
-    letter-spacing: 0.02em;
   }
 
-  /* ─── 夹子: 多种 ──────────────────────────────────── */
+  /* ─── 夹子 ──────────────────────────────────────── */
   .hcard-clip {
     position: absolute;
     top: -19px;
@@ -298,12 +349,11 @@ function styleFor(board) {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
   }
 
-  /* ─── 卡片形状变体 ──────────────────────────────────── */
-  /* tag · 吊牌(顶部窄,有圆孔) */
+  /* ─── 形状变体 ──────────────────────────────────── */
   .hcard-tag {
     background: #efe2c1;
     border-radius: 3px 3px 6px 6px;
-    padding-top: 2.8rem;
+    padding-top: 2.6rem !important;
   }
   .hcard-tag::before {
     content: '';
@@ -311,15 +361,13 @@ function styleFor(board) {
     top: 12px;
     left: 50%;
     transform: translateX(-50%);
-    width: 11px;
-    height: 11px;
+    width: 9px;
+    height: 9px;
     background: #ece4d1;
     border-radius: 50%;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
     z-index: 2;
   }
-
-  /* note · 便利贴(暖黄,偏移阴影) */
   .hcard-note {
     background: #f3dca3;
     box-shadow:
@@ -330,7 +378,7 @@ function styleFor(board) {
   .hcard-note .hcard-text { color: #5d4014; }
   .hcard-note .hcard-name { color: #3d2a0a; }
 
-  /* ─── theme accent on cards ───────────────────────── */
+  /* theme accent */
   .hcard[data-theme="soft"] { background-color: #f2eaf2; }
   .hcard[data-theme="soft"] .hcard-text { color: #4a3358; }
   .hcard[data-theme="soft"] .hcard-name { color: #382048; }
@@ -340,56 +388,88 @@ function styleFor(board) {
   .hcard[data-theme="mono"] { background-color: #e3ddd0; }
   .hcard[data-theme="mono"] .hcard-text { color: #2a2a2a; }
   .hcard[data-theme="mono"] .hcard-name { color: #1a1a1a; }
-  /* bright 和 warm 用默认米黄基底,不覆盖 */
 
-  /* ─── footer ───────────────────────────────────────── */
-  .wall-footer {
-    margin-top: 7rem;
-    text-align: center;
-  }
-  .footer-line {
-    font-style: italic;
-    color: #6e5836;
-    font-size: 1.2rem;
-    margin: 0 0 1.5rem;
-  }
-  .footer-btn {
-    display: inline-block;
-    padding: 0.8rem 1.6rem;
+  /* ─── 浮动 CTA(右下角) ──────────────────────────── */
+  .wall-cta {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 1.75rem;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+    padding: 0.85rem 1.4rem;
     background: #c4732c;
     color: #fff8e8 !important;
-    border-radius: 999px;
-    font-weight: 600;
+    border-radius: 14px;
     font-size: 0.95rem;
     text-decoration: none !important;
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s;
-    box-shadow: 0 6px 16px rgba(180, 100, 30, 0.3);
+    box-shadow: 0 8px 22px rgba(180, 100, 30, 0.35);
+    transform: rotate(-1.5deg);
   }
-  .footer-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(180, 100, 30, 0.4);
+  .wall-cta:hover {
+    transform: rotate(0deg) translateY(-2px);
+    box-shadow: 0 12px 28px rgba(180, 100, 30, 0.45);
+  }
+  .wall-cta-line {
+    font-style: italic;
+    font-family: var(--font-hand);
+    font-size: 0.85rem;
+    opacity: 0.9;
+    line-height: 1.2;
+  }
+  .wall-cta-main {
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.2;
   }
 
-  /* ─── 响应式 ───────────────────────────────────────── */
-  @media (max-width: 760px) {
-    .rope-cards { gap: 1.5rem 0.5rem; }
-    .hcard {
-      width: calc(50% - 0.5rem);
-      min-width: 150px;
-      min-height: 200px;
-      padding: 1.5rem 1rem 1rem;
+  /* ─── Mobile fallback: 允许滚动,卡片堆叠 ─────── */
+  @media (max-width: 740px) {
+    .wall-immersive {
+      width: 100%;
+      height: auto;
+      min-height: calc(100vh - 70px);
+      padding: 5rem 1rem 4rem;
+      margin: 0;
     }
-    .hcard-name { font-size: 1rem; }
-    .hcard-text { font-size: 1.02rem; -webkit-line-clamp: 4; line-clamp: 4; }
-    .rope-row { margin: 3.5rem 0 4rem; }
-  }
-  @media (max-width: 440px) {
-    .hcard { width: 100%; }
+    .wall-title {
+      position: static;
+      text-align: center;
+      margin: 0 auto 2.5rem;
+      max-width: none;
+    }
+    .wall-title h1 { font-size: 1.8rem; }
+    .rope-line { display: none; }
+    .hcard {
+      position: relative !important;
+      top: auto !important;
+      left: auto !important;
+      transform: rotate(var(--rotate, 0deg)) !important;
+      margin: 0 auto 2rem;
+      animation: none;
+      opacity: 1;
+    }
+    .hcard:hover { transform: rotate(0deg) !important; }
+    @keyframes hcard-in {
+      from, to { opacity: 1; transform: rotate(var(--rotate, 0deg)); }
+    }
+    .wall-cta {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      transform: rotate(-2deg);
+    }
   }
 
-  /* ─── reduce motion ────────────────────────────────── */
+  /* ─── 减少动画偏好 ───────────────────────────────── */
   @media (prefers-reduced-motion: reduce) {
-    .hcard { transform: none !important; }
-    .hcard:hover { transform: none !important; }
+    .hcard {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+    .hcard:hover { transform: translate(-50%, -50%) rotate(0deg); }
   }
 </style>
