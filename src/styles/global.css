@@ -6,6 +6,8 @@
   --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'PingFang SC',
                'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-hand: 'Ma Shan Zheng', 'LXGW WenKai', 'Kaiti SC', '楷体', KaiTi,
+               'STKaiti', 'Hanyi Senty Crayon', cursive;
 }
 
 /* ─── Theme variables ───────────────────────────────────── */
