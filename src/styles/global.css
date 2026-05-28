@@ -16,8 +16,8 @@
   --fg: #1a1a1f;
   --muted: #6e6e76;
   --line: #ebe9e1;
-  --card-bg: rgba(255, 255, 255, 0.7);
-  --card-border: rgba(232, 230, 222, 0.65);
+  --card-bg: rgba(255, 255, 255, 0.88);
+  --card-border: rgba(232, 230, 222, 0.85);
 
   --accent: #e87850;
   --accent-soft: #f5cbb5;
@@ -45,8 +45,8 @@
     --fg: #ededf0;
     --muted: #8a8a93;
     --line: #25252b;
-    --card-bg: rgba(28, 28, 34, 0.65);
-    --card-border: rgba(45, 45, 52, 0.6);
+    --card-bg: rgba(28, 28, 34, 0.88);
+    --card-border: rgba(45, 45, 52, 0.8);
     --glow-1: #5c3a2a;
     --glow-2: #3d2a4c;
     --glow-3: #234a72;
@@ -79,52 +79,40 @@ body {
   overflow-x: hidden;
 }
 
-/* Subtle film-grain overlay (premium tactile feel) */
+/* Subtle film-grain overlay (no mix-blend-mode — cheaper) */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: 0.5;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.12;
   z-index: 1000;
-  mix-blend-mode: multiply;
 }
 
 @media (prefers-color-scheme: dark) {
-  body::before {
-    mix-blend-mode: screen;
-    opacity: 0.22;
-  }
+  body::before { opacity: 0.08; }
 }
 
-/* Soft floating gradient glow — drifts behind everything */
+/* Soft static gradient glow — no animation, no blur filter (uses spread instead) */
 body::after {
   content: '';
   position: fixed;
-  top: -25%;
-  left: -15%;
-  width: 90vw;
-  height: 90vh;
+  top: -20%;
+  left: -10%;
+  width: 120vw;
+  height: 120vh;
   background:
-    radial-gradient(circle at 25% 30%, var(--glow-1) 0%, transparent 55%),
-    radial-gradient(circle at 75% 60%, var(--glow-2) 0%, transparent 50%),
-    radial-gradient(circle at 50% 100%, var(--glow-3) 0%, transparent 45%);
-  filter: blur(70px);
-  opacity: 0.55;
+    radial-gradient(ellipse 50vw 40vh at 25% 25%, var(--glow-1) 0%, transparent 65%),
+    radial-gradient(ellipse 45vw 35vh at 75% 60%, var(--glow-2) 0%, transparent 65%),
+    radial-gradient(ellipse 40vw 30vh at 50% 95%, var(--glow-3) 0%, transparent 60%);
+  opacity: 0.45;
   z-index: -1;
   pointer-events: none;
-  animation: drift 28s ease-in-out infinite alternate;
 }
 
 @media (prefers-color-scheme: dark) {
-  body::after { opacity: 0.4; }
-}
-
-@keyframes drift {
-  0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
-  50%  { transform: translate(4vw, 3vh) rotate(4deg) scale(1.05); }
-  100% { transform: translate(8vw, 6vh) rotate(8deg) scale(0.98); }
+  body::after { opacity: 0.32; }
 }
 
 a {
@@ -184,20 +172,19 @@ blockquote { margin: 1rem 0; padding: 0; border: none; }
 /* Scroll-triggered fade-up (driven by IntersectionObserver in Layout) */
 .fade-up {
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: opacity, transform;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
 }
 .fade-up.in {
   opacity: 1;
   transform: translateY(0);
+  will-change: auto;
 }
-.fade-up[data-delay='1'] { transition-delay: 0.1s; }
-.fade-up[data-delay='2'] { transition-delay: 0.2s; }
-.fade-up[data-delay='3'] { transition-delay: 0.3s; }
-.fade-up[data-delay='4'] { transition-delay: 0.4s; }
-.fade-up[data-delay='5'] { transition-delay: 0.5s; }
+.fade-up[data-delay='1'] { transition-delay: 0.08s; }
+.fade-up[data-delay='2'] { transition-delay: 0.16s; }
+.fade-up[data-delay='3'] { transition-delay: 0.24s; }
+.fade-up[data-delay='4'] { transition-delay: 0.32s; }
+.fade-up[data-delay='5'] { transition-delay: 0.4s; }
 
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
