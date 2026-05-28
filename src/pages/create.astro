@@ -1,0 +1,693 @@
+---
+import Layout from '../components/Layout.astro';
+const REPO_NEW_FILE_URL = 'https://github.com/Wang-Yeah623/brightboards/new/main';
+---
+<Layout
+  title="造一块属于你的"
+  description="在网页上写下一块属于你的画板,自动跳转 GitHub 开 PR。每个人都是自己人生路上的灯塔。"
+>
+  <main>
+    <header class="head">
+      <p class="page-tagline serif fade-up">每个人都是自己人生路上的灯塔</p>
+      <h1 class="fade-up" data-delay="1">造一块属于你的</h1>
+      <p class="muted lede fade-up" data-delay="2">
+        填表 + 实时预览。<br />
+        填完一键跳到 GitHub,文件已经填好,你只要点 Commit。<br />
+        <strong>没 GitHub 账号也没关系</strong>,跳转后会提示你注册(30 秒)。
+      </p>
+    </header>
+
+    <div class="creator-layout fade-up" data-delay="2">
+      <form id="create-form" class="create-form" novalidate>
+        <div class="field">
+          <label for="slug-input">
+            <span class="field-name">slug · 文件夹名</span>
+            <span class="field-hint">小写英文 / 数字 / 横线。会出现在 URL 里:<code>/boards/&lt;slug&gt;/</code></span>
+          </label>
+          <input id="slug-input" type="text" maxlength="50" required autocomplete="off" />
+          <p class="field-error" id="slug-error" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="name-input">
+            <span class="field-name">name · 显示在板子顶部的名字</span>
+            <span class="field-hint">化名 / 中文 / GitHub 名 都可以</span>
+          </label>
+          <input id="name-input" type="text" maxlength="40" required autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label for="emoji-input">
+            <span class="field-name">emoji · 代表此刻的你</span>
+            <span class="field-hint">如 🌱 / 🌙 / 🌻 / ☕ / ◐ / ✦ / 🌅 / 🫧</span>
+          </label>
+          <input id="emoji-input" type="text" maxlength="6" value="✦" autocomplete="off" />
+        </div>
+
+        <fieldset class="field theme-fieldset">
+          <legend>
+            <span class="field-name">theme · 主题色</span>
+            <span class="field-hint">选你此刻情绪的基调</span>
+          </legend>
+          <div class="theme-options">
+            <label class="theme-opt" data-theme="warm">
+              <input type="radio" name="theme" value="warm" checked />
+              <span class="opt-label"><span class="opt-emoji">🌱</span> warm</span>
+              <span class="opt-desc">暖橙 · 疲倦但还在</span>
+            </label>
+            <label class="theme-opt" data-theme="soft">
+              <input type="radio" name="theme" value="soft" />
+              <span class="opt-label"><span class="opt-emoji">🫧</span> soft</span>
+              <span class="opt-desc">柔紫 · 哭完之后</span>
+            </label>
+            <label class="theme-opt" data-theme="bright">
+              <input type="radio" name="theme" value="bright" />
+              <span class="opt-label"><span class="opt-emoji">🌅</span> bright</span>
+              <span class="opt-desc">暖金 · 新开始</span>
+            </label>
+            <label class="theme-opt" data-theme="quiet">
+              <input type="radio" name="theme" value="quiet" />
+              <span class="opt-label"><span class="opt-emoji">🌙</span> quiet</span>
+              <span class="opt-desc">蓝灰 · 凌晨三点</span>
+            </label>
+            <label class="theme-opt" data-theme="mono">
+              <input type="radio" name="theme" value="mono" />
+              <span class="opt-label"><span class="opt-emoji">◐</span> mono</span>
+              <span class="opt-desc">单色 · 活着就赢</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label for="self-input">
+            <span class="field-name">给自己 · 1-5 句</span>
+            <span class="field-hint">每句不超过 140 字。一行一句。当你内耗时回来读它。</span>
+          </label>
+          <textarea
+            id="self-input"
+            rows="4"
+            required
+            placeholder="今天的我,做到 60% 就够了。&#10;我不需要赢,只需要在。"
+          ></textarea>
+          <p class="field-counter"><span id="self-counter">0 句 · 每句 0 字</span></p>
+        </div>
+
+        <div class="field">
+          <label for="stranger-input">
+            <span class="field-name">给陌生人 · 1-5 句</span>
+            <span class="field-hint">每句不超过 140 字。一行一句。给一个你永远不会认识的人,一束光。</span>
+          </label>
+          <textarea
+            id="stranger-input"
+            rows="4"
+            required
+            placeholder="你能读到这里,说明你今天没有放弃自己 —— 这本身就是了不起的事。"
+          ></textarea>
+          <p class="field-counter"><span id="stranger-counter">0 句 · 每句 0 字</span></p>
+        </div>
+
+        <details class="optional">
+          <summary>选填字段(标签 / 心情 / 链接)</summary>
+
+          <div class="field">
+            <label for="tags-input">
+              <span class="field-name">tags · 标签</span>
+              <span class="field-hint">最多 3 个,逗号分隔。例:<code>反内卷, 慢慢来</code></span>
+            </label>
+            <input id="tags-input" type="text" maxlength="80" autocomplete="off" />
+          </div>
+
+          <div class="field">
+            <label for="mood-input">
+              <span class="field-name">mood_today · 那天的心情</span>
+              <span class="field-hint">一个词。给未来回看的你看。</span>
+            </label>
+            <input id="mood-input" type="text" maxlength="20" placeholder="平静" autocomplete="off" />
+          </div>
+
+          <div class="field">
+            <label for="link-input">
+              <span class="field-name">link · 个人链接</span>
+              <span class="field-hint">GitHub / 博客 / Twitter / 任意</span>
+            </label>
+            <input id="link-input" type="url" maxlength="200" placeholder="https://..." autocomplete="off" />
+          </div>
+        </details>
+      </form>
+
+      <aside class="preview-panel">
+        <p class="preview-label">实时预览</p>
+        <div id="preview-card-wrap" class="preview-card-wrap">
+          <article class="board-card placeholder" data-theme="warm">
+            <p class="placeholder-text">填表后会在这里实时显示</p>
+          </article>
+        </div>
+        <details class="yaml-preview">
+          <summary>看生成的 YAML</summary>
+          <pre id="yaml-output">填表后这里会显示要提交的 board.yml 内容</pre>
+        </details>
+      </aside>
+    </div>
+
+    <div class="actions fade-up">
+      <a id="submit-link" class="btn submit-btn" href="#" rel="noopener" aria-disabled="true">
+        <span class="btn-text">填完表 → 跳 GitHub 开 PR</span>
+      </a>
+      <p class="muted small actions-hint" id="submit-hint">
+        ⚠️ 还有字段没填完
+      </p>
+      <p class="muted small actions-meta">
+        点击后跳到 GitHub 的 "Create new file" 页面,文件名和内容都已填好。<br />
+        你只需点 Commit changes,GitHub 自动 fork 仓库并开 PR。我看到后会 merge。
+      </p>
+    </div>
+  </main>
+</Layout>
+
+<script is:inline>
+  (function () {
+    const REPO_NEW_FILE_URL = 'https://github.com/Wang-Yeah623/brightboards/new/main';
+    const MAX_LINE = 140;
+    const MAX_LINES = 5;
+    const MAX_TAGS = 3;
+    const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*$/;
+
+    const els = {
+      form: document.getElementById('create-form'),
+      slug: document.getElementById('slug-input'),
+      slugError: document.getElementById('slug-error'),
+      name: document.getElementById('name-input'),
+      emoji: document.getElementById('emoji-input'),
+      themes: document.querySelectorAll('input[name="theme"]'),
+      self: document.getElementById('self-input'),
+      selfCounter: document.getElementById('self-counter'),
+      stranger: document.getElementById('stranger-input'),
+      strangerCounter: document.getElementById('stranger-counter'),
+      tags: document.getElementById('tags-input'),
+      mood: document.getElementById('mood-input'),
+      link: document.getElementById('link-input'),
+      submit: document.getElementById('submit-link'),
+      submitHint: document.getElementById('submit-hint'),
+      previewWrap: document.getElementById('preview-card-wrap'),
+      yamlOutput: document.getElementById('yaml-output'),
+    };
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function yamlEscape(s) {
+      return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    }
+
+    function readForm() {
+      const themeEl = Array.from(els.themes).find((r) => r.checked);
+      const theme = themeEl ? themeEl.value : 'warm';
+      const toSelf = els.self.value
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, MAX_LINES);
+      const toStrangers = els.stranger.value
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, MAX_LINES);
+      const tags = (els.tags.value || '')
+        .split(/[,，]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, MAX_TAGS);
+      return {
+        slug: (els.slug.value || '').trim().toLowerCase(),
+        name: (els.name.value || '').trim(),
+        emoji: (els.emoji.value || '').trim() || '✦',
+        theme,
+        toSelf,
+        toStrangers,
+        tags,
+        mood: (els.mood.value || '').trim(),
+        link: (els.link.value || '').trim(),
+      };
+    }
+
+    function validate(data) {
+      const errors = [];
+      if (!data.slug) errors.push('填一个 slug');
+      else if (!SLUG_REGEX.test(data.slug))
+        errors.push('slug 只能用小写英文 / 数字 / 横线,且要以字母或数字开头');
+      if (!data.name) errors.push('填一个 name');
+      if (data.toSelf.length === 0) errors.push('至少写一句"给自己"');
+      if (data.toStrangers.length === 0) errors.push('至少写一句"给陌生人"');
+      for (const [i, s] of data.toSelf.entries()) {
+        if (s.length > MAX_LINE) errors.push(`给自己第 ${i + 1} 句超过 ${MAX_LINE} 字 (现在 ${s.length})`);
+      }
+      for (const [i, s] of data.toStrangers.entries()) {
+        if (s.length > MAX_LINE) errors.push(`给陌生人第 ${i + 1} 句超过 ${MAX_LINE} 字 (现在 ${s.length})`);
+      }
+      return errors;
+    }
+
+    function generateYaml(data) {
+      const lines = [];
+      lines.push(`name: "${yamlEscape(data.name)}"`);
+      lines.push(`emoji: "${yamlEscape(data.emoji)}"`);
+      lines.push(`theme: ${data.theme}`);
+      lines.push('');
+      lines.push('to_self:');
+      for (const t of data.toSelf) lines.push(`  - "${yamlEscape(t)}"`);
+      lines.push('');
+      lines.push('to_strangers:');
+      for (const t of data.toStrangers) lines.push(`  - "${yamlEscape(t)}"`);
+      if (data.tags.length > 0) {
+        lines.push('');
+        lines.push('tags:');
+        for (const t of data.tags) lines.push(`  - "${yamlEscape(t)}"`);
+      }
+      if (data.mood) {
+        lines.push('');
+        lines.push(`mood_today: "${yamlEscape(data.mood)}"`);
+      }
+      if (data.link) {
+        lines.push('');
+        lines.push(`link: "${yamlEscape(data.link)}"`);
+      }
+      lines.push('');
+      return lines.join('\n');
+    }
+
+    function buildGitHubLink(data, yaml) {
+      const params = new URLSearchParams();
+      params.set('filename', `boards/${data.slug}/board.yml`);
+      params.set('value', yaml);
+      return `${REPO_NEW_FILE_URL}?${params.toString()}`;
+    }
+
+    function renderPreview(data) {
+      const firstSelf = data.toSelf[0] || '';
+      const firstStranger = data.toStrangers[0] || '';
+      const hasContent = data.name || firstSelf || firstStranger;
+      if (!hasContent) {
+        els.previewWrap.innerHTML = `
+          <article class="board-card placeholder" data-theme="${data.theme}">
+            <p class="placeholder-text">填表后会在这里实时显示</p>
+          </article>`;
+        return;
+      }
+      els.previewWrap.innerHTML = `
+        <article class="board-card" data-theme="${data.theme}">
+          <div class="bc-row">
+            <div class="bc-main">
+              <header class="bc-head">
+                <div class="bc-name">
+                  <span class="bc-emoji">${escapeHtml(data.emoji)}</span>
+                  <span class="bc-name-text">${escapeHtml(data.name || '你的名字')}</span>
+                </div>
+                ${
+                  data.tags.length > 0
+                    ? `<div class="bc-tags">${data.tags
+                        .map((t) => `<span class="bc-tag">${escapeHtml(t)}</span>`)
+                        .join('')}</div>`
+                    : ''
+                }
+              </header>
+              ${
+                firstSelf
+                  ? `<blockquote class="bc-self"><span class="bc-label">给自己</span><p>${escapeHtml(firstSelf)}</p></blockquote>`
+                  : ''
+              }
+              ${
+                firstStranger
+                  ? `<blockquote class="bc-stranger"><span class="bc-label">给你 (陌生人)</span><p>${escapeHtml(firstStranger)}</p></blockquote>`
+                  : ''
+              }
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function updateCounter(textarea, counterEl) {
+      const text = textarea.value;
+      const lines = text.split('\n').filter((l) => l.trim().length > 0);
+      const longest = lines.reduce((m, l) => Math.max(m, l.trim().length), 0);
+      const overLimit = longest > MAX_LINE;
+      const overCount = lines.length > MAX_LINES;
+      counterEl.textContent = `${lines.length} 句 · 最长一句 ${longest} 字`;
+      counterEl.className = overLimit || overCount ? 'over-limit' : '';
+    }
+
+    function update() {
+      const data = readForm();
+
+      renderPreview(data);
+      updateCounter(els.self, els.selfCounter);
+      updateCounter(els.stranger, els.strangerCounter);
+
+      const errors = validate(data);
+
+      // YAML preview (always show if any content)
+      if (data.name || data.toSelf.length > 0 || data.toStrangers.length > 0) {
+        els.yamlOutput.textContent = generateYaml(data);
+      } else {
+        els.yamlOutput.textContent = '填表后这里会显示要提交的 board.yml 内容';
+      }
+
+      if (errors.length === 0) {
+        const yaml = generateYaml(data);
+        const url = buildGitHubLink(data, yaml);
+        els.submit.href = url;
+        els.submit.setAttribute('target', '_blank');
+        els.submit.removeAttribute('aria-disabled');
+        els.submit.dataset.ready = '1';
+        els.submitHint.textContent = '✦ 全部填好了,点上面按钮跳到 GitHub';
+        els.submitHint.className = 'small ready';
+      } else {
+        els.submit.href = '#';
+        els.submit.removeAttribute('target');
+        els.submit.setAttribute('aria-disabled', 'true');
+        els.submit.dataset.ready = '0';
+        els.submitHint.textContent = '⚠️ ' + errors[0];
+        els.submitHint.className = 'small not-ready';
+      }
+    }
+
+    // Listen all changes
+    els.form.addEventListener('input', update);
+    els.form.addEventListener('change', update);
+
+    // Auto-suggest slug from name (only English chars)
+    let slugTouched = false;
+    els.slug.addEventListener('input', () => {
+      slugTouched = true;
+    });
+    els.name.addEventListener('input', () => {
+      if (!slugTouched && els.name.value) {
+        const slug = els.name.value
+          .toLowerCase()
+          .replace(/[^\w-]+/g, '-')
+          .replace(/[一-鿿]+/g, '')
+          .replace(/^-+|-+$/g, '');
+        if (slug && SLUG_REGEX.test(slug)) {
+          els.slug.value = slug;
+        }
+      }
+    });
+
+    // Prevent disabled-link navigation
+    els.submit.addEventListener('click', (e) => {
+      if (els.submit.dataset.ready !== '1') {
+        e.preventDefault();
+      }
+    });
+
+    // Initial render
+    update();
+  })();
+</script>
+
+<style>
+  .head {
+    text-align: center;
+    margin: 1.5rem 0 3rem;
+  }
+  .page-tagline {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 0.95rem;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.75rem;
+  }
+  .head h1 {
+    font-size: 2.6rem;
+    margin: 0.25rem 0 0.75rem;
+    font-weight: 500;
+  }
+  .lede {
+    max-width: 36em;
+    margin: 0 auto;
+    line-height: 1.85;
+    font-size: 1rem;
+  }
+  @media (max-width: 600px) {
+    .head h1 { font-size: 2rem; }
+  }
+
+  .creator-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    margin: 2rem 0;
+  }
+  @media (min-width: 900px) {
+    .creator-layout { grid-template-columns: 1fr 1fr; }
+  }
+
+  .create-form { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .field { display: flex; flex-direction: column; gap: 0.5rem; }
+  .field label, .field legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .field-name {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    color: var(--fg);
+    font-weight: 500;
+  }
+  .field-hint {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .field-hint code {
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+  }
+  .field input[type="text"],
+  .field input[type="url"],
+  .field textarea {
+    background: var(--card-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 0.65rem 0.9rem;
+    font: inherit;
+    color: var(--fg);
+    font-size: 0.98rem;
+    transition: border-color 0.18s, box-shadow 0.18s;
+    width: 100%;
+  }
+  .field input:focus,
+  .field textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .field textarea {
+    resize: vertical;
+    line-height: 1.7;
+    min-height: 6rem;
+  }
+  .field-counter {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: right;
+  }
+  .field-counter span.over-limit {
+    color: #d65a3a;
+    font-weight: 600;
+  }
+  .field-error {
+    color: #d65a3a;
+    font-size: 0.85rem;
+    margin: 0;
+  }
+
+  .theme-fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+  .theme-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.55rem;
+    margin-top: 0.5rem;
+  }
+  .theme-opt {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: 0.65rem 0.8rem;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+    background: var(--card-bg);
+    backdrop-filter: blur(8px);
+    transition: border-color 0.2s, background 0.2s, transform 0.2s;
+  }
+  .theme-opt:hover { transform: translateY(-1px); }
+  .theme-opt input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+  .theme-opt:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .opt-label {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    color: var(--fg);
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .opt-emoji { font-family: var(--font-sans); font-size: 1.1rem; }
+  .opt-desc {
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  details.optional {
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    padding: 0.75rem 1.1rem;
+    background: color-mix(in srgb, var(--card-bg) 50%, transparent);
+  }
+  details.optional > summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 500;
+    font-size: 0.92rem;
+    padding: 0.25rem 0;
+    list-style: none;
+  }
+  details.optional > summary::before {
+    content: '+';
+    display: inline-block;
+    width: 1.2em;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  details.optional[open] > summary::before { content: '−'; }
+  details.optional > .field { margin-top: 1rem; }
+  details.optional > .field + .field { margin-top: 1rem; }
+
+  .preview-panel {
+    position: sticky;
+    top: 6rem;
+    align-self: start;
+  }
+  @media (max-width: 899px) {
+    .preview-panel { position: static; }
+  }
+  .preview-label {
+    font-size: 0.76rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 600;
+    margin: 0 0 1rem;
+    text-align: center;
+  }
+  .preview-card-wrap .board-card.placeholder {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    border-style: dashed;
+  }
+  .placeholder-text {
+    color: var(--muted);
+    font-style: italic;
+    margin: 0;
+  }
+
+  .yaml-preview {
+    margin-top: 1.5rem;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    background: color-mix(in srgb, var(--card-bg) 50%, transparent);
+  }
+  .yaml-preview summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.85rem;
+    list-style: none;
+  }
+  .yaml-preview summary::before {
+    content: '▸';
+    display: inline-block;
+    width: 1.2em;
+    transition: transform 0.2s;
+  }
+  .yaml-preview[open] summary::before { transform: rotate(90deg); }
+  .yaml-preview pre {
+    margin: 0.75rem 0 0;
+    padding: 0.75rem;
+    background: var(--bg-alt);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: var(--fg);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .actions {
+    text-align: center;
+    margin: 3rem 0 1rem;
+  }
+  .submit-btn {
+    display: inline-block;
+    padding: 1rem 2rem;
+    background: var(--accent);
+    color: white !important;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 1.05rem;
+    transition: opacity 0.2s, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s;
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 25%, transparent);
+    text-decoration: none;
+  }
+  .submit-btn[aria-disabled="true"] {
+    background: var(--muted);
+    cursor: not-allowed;
+    opacity: 0.55;
+    box-shadow: none;
+  }
+  .submit-btn:not([aria-disabled="true"]):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 38px color-mix(in srgb, var(--accent) 38%, transparent);
+    text-decoration: none;
+  }
+  .actions-hint {
+    margin-top: 1rem;
+    font-size: 0.92rem;
+  }
+  .actions-hint.not-ready { color: var(--muted); }
+  .actions-hint.ready {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .actions-meta {
+    max-width: 40em;
+    margin: 1.5rem auto 0;
+    line-height: 1.7;
+  }
+</style>

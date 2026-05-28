@@ -5,6 +5,7 @@ import { getAllBoards } from '../lib/boards.js';
 
 const boards = getAllBoards();
 const total = boards.length;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
 ---
 <Layout title="所有画板">
   <main>
@@ -29,7 +30,7 @@ const total = boards.length;
     <aside class="cta-bottom fade-up">
       <p class="cta-text serif">看不到你自己的板子?</p>
       <p>
-        <a href="https://github.com/Wang-Yeah623/brightboards" target="_blank" rel="noopener" class="btn-soft">
+        <a href={`${base}/create/`} class="btn-soft">
           来加一块 →
         </a>
       </p>
