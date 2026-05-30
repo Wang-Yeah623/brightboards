@@ -15,246 +15,237 @@ function hash(s) {
   return Math.abs(h);
 }
 
-// 6 根绳子,每根 4 个物件 = 24 件,真画板 ~6 + 装饰 ~18
-const ROPES = 6;
-const ITEMS_PER_ROPE = 4;
-const TOTAL = ROPES * ITEMS_PER_ROPE;
+// 3 条绳子,每条 ~5-7 件物件(真画板 + 装饰)
+const ROPES = 3;
+const TOTAL = Math.max(15, boards.length * 3); // 至少 15 件让墙不空
 
-// 真画板均匀分布到 slots
-const realSlots = new Set();
-for (let i = 0; i < boards.length; i++) {
-  let target = Math.floor(((i + 0.5) / boards.length) * TOTAL);
-  while (realSlots.has(target)) target = (target + 1) % TOTAL;
-  realSlots.add(target);
-}
+// 把真画板均匀分布到三条绳子
+const ropeItems = Array.from({ length: ROPES }, () => []);
+boards.forEach((board, i) => {
+  const ropeIdx = i % ROPES;
+  ropeItems[ropeIdx].push({ kind: 'board', board });
+});
 
-const DECO_TYPES = ['photo', 'photo', 'handwritten', 'handwritten', 'watercolor', 'collage', 'botanical', 'tag-color'];
-const SHAPES = ['rect', 'rect', 'rect', 'tag', 'note'];
-// binder clip 主导(就像参考图)
-const CLIPS = ['binder', 'binder', 'binder', 'binder', 'wood', 'wood', 'metal', 'pin'];
-
-// X 范围避免边缘,5%-95%
-function placeAt(ropeIdx, posInRope, h) {
-  const baseX = 5 + ((posInRope + 0.5) / ITEMS_PER_ROPE) * 90;
-  const baseY = 13 + ((ropeIdx + 0.5) / ROPES) * 78;
-  const jitterX = ((h % 18) - 9);
-  const jitterY = (((h >> 4) % 8) - 4);
-  return {
-    x: baseX + jitterX,
-    y: baseY + jitterY,
-    rotate: (((h >> 8) % 110) / 10 - 5.5).toFixed(2),
-    clipOffset: (((h >> 5) % 36) - 18),
-  };
-}
-
-const items = [];
-let realIdx = 0;
-for (let slot = 0; slot < TOTAL; slot++) {
-  const ropeIdx = Math.floor(slot / ITEMS_PER_ROPE);
-  const posInRope = slot % ITEMS_PER_ROPE;
-
-  if (realSlots.has(slot)) {
-    const board = boards[realIdx++];
-    if (!board) continue;
-    const sh = hash(board.slug);
-    const pos = placeAt(ropeIdx, posInRope, sh);
-    items.push({
-      kind: 'board',
-      board,
-      ...pos,
-      size: ['m', 'm', 'l'][(sh >> 12) % 3],
-      shape: SHAPES[sh % SHAPES.length],
-      clip: CLIPS[(sh >> 3) % CLIPS.length],
-      slot,
-    });
-  } else {
-    const h = hash(`deco-${slot}`);
-    const pos = placeAt(ropeIdx, posInRope, h);
-    items.push({
+// 把装饰物均匀填充到三条绳子,目标每条 ~5-7 件
+const DECO_TYPES = ['photo', 'handwritten', 'watercolor', 'collage', 'botanical', 'tag-color'];
+const TARGET_PER_ROPE = Math.max(5, Math.ceil(TOTAL / ROPES));
+let decoSeed = 0;
+for (let r = 0; r < ROPES; r++) {
+  while (ropeItems[r].length < TARGET_PER_ROPE) {
+    const h = hash(`deco-${r}-${decoSeed++}`);
+    ropeItems[r].push({
       kind: 'deco',
       decoType: DECO_TYPES[h % DECO_TYPES.length],
       seed: h,
-      ...pos,
-      size: ['s', 's', 's', 'm'][(h >> 14) % 4],
-      clip: CLIPS[(h >> 3) % CLIPS.length],
-      slot,
     });
   }
 }
 
-const ropeYs = [];
-for (let r = 0; r < ROPES; r++) {
-  ropeYs.push(13 + ((r + 0.5) / ROPES) * 78 - 5);
+// 在每条绳子里 shuffle (deterministic) 让真画板和装饰交错
+ropeItems.forEach((rope, r) => {
+  const indices = rope.map((_, i) => i);
+  // shuffle by sin-based pseudo-random per (r, i)
+  indices.sort((a, b) => {
+    const ha = Math.abs(Math.sin((r + 1) * 31 + a * 17) * 10000) % 1;
+    const hb = Math.abs(Math.sin((r + 1) * 31 + b * 17) * 10000) % 1;
+    return ha - hb;
+  });
+  ropeItems[r] = indices.map(i => rope[i]);
+});
+
+// 计算每个 item 的样式
+const SHAPES = ['rect', 'rect', 'rect', 'rect', 'tag', 'note'];
+const CLIPS = ['binder', 'binder', 'binder', 'binder', 'wood', 'wood', 'metal', 'pin'];
+
+function styleForItem(item, ropeIdx, posIdx) {
+  const key = item.kind === 'board' ? item.board.slug : `deco-${ropeIdx}-${posIdx}-${item.seed}`;
+  const h = item.kind === 'board' ? hash(item.board.slug) : item.seed;
+
+  return {
+    rotate: (((h >> 8) % 80) / 10 - 4).toFixed(2),
+    yOffset: ((h >> 4) % 30) - 15, // -15~15 px
+    size: item.kind === 'board'
+      ? ['m', 'm', 'l'][(h >> 12) % 3]
+      : ['s', 's', 'm'][(h >> 14) % 3],
+    shape: SHAPES[h % SHAPES.length],
+    clip: CLIPS[(h >> 3) % CLIPS.length],
+    clipOffset: (((h >> 5) % 30) - 15),
+    enterDelay: (ropeIdx * 5 + posIdx) * 0.04,
+  };
 }
 ---
 <Layout title="所有画板" noFooter>
   <div class="wall-bg"></div>
 
   <div class="wall-immersive">
-    {/* 标题:浮在左上角 */}
+    {/* 标题 */}
     <div class="wall-title">
       <p class="page-tagline serif">每个人都是自己人生路上的灯塔</p>
       <h1>所有人的画板</h1>
-      <p class="title-meta">{total} 张真实留言挂在这面墙上</p>
+      <p class="title-meta">{total} 张真实留言挂在墙上 · 鼠标 ← → 拖或滚轮看更多</p>
     </div>
 
-    {/* 6 根绳子 */}
-    {ropeYs.map((y, i) => {
-      const dropAmount = 3 + (i % 3) * 0.8;
-      const midSlight = 0.3 + (i % 2) * 0.4;
-      return (
+    {ropeItems.map((rope, ropeIdx) => (
+      <section class="rope-lane" data-rope={ropeIdx}>
         <svg
           class="rope-line"
-          style={`top: ${y}%`}
           viewBox="0 0 100 8"
           preserveAspectRatio="none"
           aria-hidden="true"
         >
           <path
-            d={`M0,2 Q30,${2 + dropAmount} 50,${2 + dropAmount - midSlight} T100,2`}
+            d={`M0,2 Q30,${3 + ropeIdx * 0.4} 50,${2.5 + ropeIdx * 0.3} T100,2`}
             stroke="currentColor"
-            stroke-width="0.45"
+            stroke-width="0.42"
             fill="none"
             stroke-linecap="round"
           />
         </svg>
-      );
-    })}
+        <div class="rope-track" data-track={ropeIdx}>
+          <div class="rope-spacer-start"></div>
+          {rope.map((it, posIdx) => {
+            const s = styleForItem(it, ropeIdx, posIdx);
+            const itemStyle = `--rotate: ${s.rotate}deg; --y: ${s.yOffset}px; --clip-offset: ${s.clipOffset}%; --enter-delay: ${s.enterDelay}s;`;
 
-    {/* Items */}
-    {items.map((it) => {
-      const style = `top: ${it.y}%; left: ${it.x}%; --rotate: ${it.rotate}deg; --clip-offset: ${it.clipOffset}%; --enter-delay: ${it.slot * 0.03}s;`;
+            if (it.kind === 'board') {
+              const board = it.board;
+              const firstStranger = board.to_strangers[0] || board.to_self[0] || '';
+              const tagList = (board.tags || []).slice(0, 2);
+              return (
+                <a
+                  href={`${base}/boards/${board.slug}/`}
+                  class={`hcard hcard-real hcard-${s.shape} hcard-size-${s.size}`}
+                  data-theme={board.theme}
+                  style={itemStyle}
+                  aria-label={`看 ${board.name} 的画板`}
+                >
+                  <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
+                  <span class="hcard-emoji" aria-hidden="true">{board.emoji}</span>
+                  <h3 class="hcard-name">{board.name}</h3>
+                  <p class="hcard-text">{firstStranger}</p>
+                  {tagList.length > 0 && (
+                    <p class="hcard-tags">{tagList.map((t) => `#${t}`).join('  ')}</p>
+                  )}
+                </a>
+              );
+            }
 
-      if (it.kind === 'board') {
-        const board = it.board;
-        const firstStranger = board.to_strangers[0] || board.to_self[0] || '';
-        const tagList = (board.tags || []).slice(0, 2);
-        return (
-          <a
-            href={`${base}/boards/${board.slug}/`}
-            class={`hcard hcard-real hcard-${it.shape} hcard-size-${it.size}`}
-            data-theme={board.theme}
-            style={style}
-            aria-label={`看 ${board.name} 的画板`}
-          >
-            <span class={`hcard-clip hcard-clip-${it.clip}`} aria-hidden="true"></span>
-            <span class="hcard-emoji" aria-hidden="true">{board.emoji}</span>
-            <h3 class="hcard-name">{board.name}</h3>
-            <p class="hcard-text">{firstStranger}</p>
-            {tagList.length > 0 && (
-              <p class="hcard-tags">{tagList.map((t) => `#${t}`).join('  ')}</p>
-            )}
-          </a>
-        );
-      }
+            // Deco items
+            const dec = it.decoType;
+            const seed = it.seed;
+            const hue1 = seed % 360;
+            const hue2 = (seed >> 8) % 360;
+            const hue3 = (seed >> 16) % 360;
+            const decClass = `hcard hcard-deco hcard-${dec} hcard-size-${s.size}`;
 
-      // --- Decorative items ---
-      const dec = it.decoType;
-      const seed = it.seed;
-      const hue1 = seed % 360;
-      const hue2 = (seed >> 8) % 360;
-      const hue3 = (seed >> 16) % 360;
+            if (dec === 'photo') {
+              const w = s.size === 's' ? 160 : 190;
+              const hImg = s.size === 's' ? 200 : 240;
+              return (
+                <div class={decClass} style={itemStyle} aria-hidden="true">
+                  <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
+                  <div class="photo-frame">
+                    <img src={`https://picsum.photos/seed/bb-${seed}/${w}/${hImg}`} alt="" loading="lazy" />
+                  </div>
+                </div>
+              );
+            }
+            if (dec === 'handwritten') {
+              return (
+                <div class={decClass} style={itemStyle} aria-hidden="true">
+                  <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
+                  <svg class="hw-lines" viewBox="0 0 100 70" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M8,10 Q18,7 32,9 T 58,10 T 88,9" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.55" stroke-linecap="round" />
+                    <path d="M8,18 Q15,16 28,17 T 52,18 T 80,17" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.55" stroke-linecap="round" />
+                    <path d="M8,26 Q20,24 42,26 T 78,25" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.5" stroke-linecap="round" />
+                    <path d="M8,34 Q22,32 48,33 T 82,34" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.55" stroke-linecap="round" />
+                    <path d="M8,42 Q18,40 35,41 T 65,42" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.45" stroke-linecap="round" />
+                    <path d="M8,50 Q15,48 28,49 T 50,49" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.4" stroke-linecap="round" />
+                  </svg>
+                </div>
+              );
+            }
+            if (dec === 'watercolor') {
+              return (
+                <div class={decClass} style={itemStyle} aria-hidden="true">
+                  <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
+                  <svg viewBox="0 0 100 80" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                    <ellipse cx="50" cy="42" rx="38" ry="28" fill={`hsl(${hue1}, 32%, 64%)`} opacity="0.55" />
+                    <ellipse cx="46" cy="38" rx="30" ry="22" fill={`hsl(${hue1 + 20}, 38%, 70%)`} opacity="0.55" />
+                    <ellipse cx="55" cy="45" rx="22" ry="16" fill={`hsl(${hue1 - 15}, 28%, 58%)`} opacity="0.6" />
+                  </svg>
+                </div>
+              );
+            }
+            if (dec === 'collage') {
+              return (
+                <div class={decClass} style={itemStyle} aria-hidden="true">
+                  <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
+                  <svg viewBox="0 0 100 110" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                    <rect x="10" y="15" width="35" height="48" fill={`hsl(${hue1}, 45%, 62%)`} opacity="0.85" />
+                    <circle cx="65" cy="35" r="22" fill={`hsl(${hue2}, 50%, 60%)`} opacity="0.85" />
+                    <rect x="40" y="58" width="35" height="32" fill={`hsl(${hue3}, 42%, 68%)`} opacity="0.85" transform="rotate(8, 57, 74)" />
+                  </svg>
+                </div>
+              );
+            }
+            if (dec === 'botanical') {
+              return (
+                <div class={decClass} style={itemStyle} aria-hidden="true">
+                  <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
+                  <svg viewBox="0 0 100 130" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                    <path d="M50,15 L50,115" stroke="#6e8254" stroke-width="0.8" opacity="0.7" />
+                    <ellipse cx="50" cy="35" rx="14" ry="6" fill="#86a96a" opacity="0.85" transform="rotate(-35, 50, 35)" />
+                    <ellipse cx="50" cy="55" rx="13" ry="6" fill="#86a96a" opacity="0.85" transform="rotate(35, 50, 55)" />
+                    <ellipse cx="50" cy="75" rx="14" ry="6" fill="#86a96a" opacity="0.85" transform="rotate(-30, 50, 75)" />
+                    <ellipse cx="50" cy="95" rx="12" ry="5" fill="#86a96a" opacity="0.85" transform="rotate(28, 50, 95)" />
+                  </svg>
+                </div>
+              );
+            }
+            if (dec === 'tag-color') {
+              const fillHue = [220, 30, 150, 350][seed % 4];
+              const fillSat = [40, 55, 35, 45][seed % 4];
+              return (
+                <div class={decClass} style={`${itemStyle} --tag-bg: hsl(${fillHue}, ${fillSat}%, 38%);`} aria-hidden="true">
+                  <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
+                  <svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M10,15 Q22,12 38,14 T 70,13 T 90,15" stroke="rgba(255,255,255,0.6)" stroke-width="0.5" fill="none" stroke-linecap="round" />
+                    <path d="M10,25 Q22,22 38,24 T 70,23 T 85,25" stroke="rgba(255,255,255,0.55)" stroke-width="0.5" fill="none" stroke-linecap="round" />
+                    <path d="M10,35 Q22,32 38,34 T 65,33" stroke="rgba(255,255,255,0.5)" stroke-width="0.5" fill="none" stroke-linecap="round" />
+                    <path d="M10,45 Q20,42 35,44 T 60,45" stroke="rgba(255,255,255,0.45)" stroke-width="0.5" fill="none" stroke-linecap="round" />
+                  </svg>
+                </div>
+              );
+            }
+            return null;
+          })}
+          <div class="rope-spacer-end"></div>
+        </div>
+      </section>
+    ))}
 
-      if (dec === 'photo') {
-        const w = it.size === 's' ? 160 : 190;
-        const h = it.size === 's' ? 180 : 220;
-        return (
-          <div class={`hcard hcard-deco hcard-photo hcard-size-${it.size}`} style={style} aria-hidden="true">
-            <span class={`hcard-clip hcard-clip-${it.clip}`} aria-hidden="true"></span>
-            <div class="photo-frame">
-              <img src={`https://picsum.photos/seed/bb-${seed}/${w}/${h}`} alt="" loading="lazy" />
-            </div>
-          </div>
-        );
-      }
-
-      if (dec === 'handwritten') {
-        return (
-          <div class={`hcard hcard-deco hcard-handwritten hcard-size-${it.size}`} style={style} aria-hidden="true">
-            <span class={`hcard-clip hcard-clip-${it.clip}`} aria-hidden="true"></span>
-            <svg class="hw-lines" viewBox="0 0 100 70" preserveAspectRatio="none" aria-hidden="true">
-              <path d="M8,10 Q18,7 32,9 T 58,10 T 88,9" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.55" stroke-linecap="round" />
-              <path d="M8,18 Q15,16 28,17 T 52,18 T 80,17" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.55" stroke-linecap="round" />
-              <path d="M8,26 Q20,24 42,26 T 78,25" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.5" stroke-linecap="round" />
-              <path d="M8,34 Q22,32 48,33 T 82,34" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.55" stroke-linecap="round" />
-              <path d="M8,42 Q18,40 35,41 T 65,42" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.45" stroke-linecap="round" />
-              <path d="M8,50 Q15,48 28,49 T 50,49" stroke="#5a3a18" stroke-width="0.35" fill="none" opacity="0.4" stroke-linecap="round" />
-            </svg>
-          </div>
-        );
-      }
-
-      if (dec === 'watercolor') {
-        return (
-          <div class={`hcard hcard-deco hcard-watercolor hcard-size-${it.size}`} style={style} aria-hidden="true">
-            <span class={`hcard-clip hcard-clip-${it.clip}`} aria-hidden="true"></span>
-            <svg viewBox="0 0 100 80" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <ellipse cx="50" cy="42" rx="38" ry="28" fill={`hsl(${hue1}, 32%, 64%)`} opacity="0.55" />
-              <ellipse cx="46" cy="38" rx="30" ry="22" fill={`hsl(${hue1 + 20}, 38%, 70%)`} opacity="0.55" />
-              <ellipse cx="55" cy="45" rx="22" ry="16" fill={`hsl(${hue1 - 15}, 28%, 58%)`} opacity="0.6" />
-            </svg>
-          </div>
-        );
-      }
-
-      if (dec === 'collage') {
-        return (
-          <div class={`hcard hcard-deco hcard-collage hcard-size-${it.size}`} style={style} aria-hidden="true">
-            <span class={`hcard-clip hcard-clip-${it.clip}`} aria-hidden="true"></span>
-            <svg viewBox="0 0 100 110" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <rect x="10" y="15" width="35" height="48" fill={`hsl(${hue1}, 45%, 62%)`} opacity="0.85" />
-              <circle cx="65" cy="35" r="22" fill={`hsl(${hue2}, 50%, 60%)`} opacity="0.85" />
-              <rect x="40" y="58" width="35" height="32" fill={`hsl(${hue3}, 42%, 68%)`} opacity="0.85" transform="rotate(8, 57, 74)" />
-              <circle cx="22" cy="80" r="12" fill={`hsl(${hue2 + 60}, 45%, 65%)`} opacity="0.75" />
-            </svg>
-          </div>
-        );
-      }
-
-      if (dec === 'botanical') {
-        return (
-          <div class={`hcard hcard-deco hcard-botanical hcard-size-${it.size}`} style={style} aria-hidden="true">
-            <span class={`hcard-clip hcard-clip-${it.clip}`} aria-hidden="true"></span>
-            <svg viewBox="0 0 100 130" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <path d="M50,15 L50,115" stroke="#6e8254" stroke-width="0.8" opacity="0.7" />
-              <ellipse cx="50" cy="35" rx="14" ry="6" fill="#86a96a" opacity="0.85" transform="rotate(-35, 50, 35)" />
-              <ellipse cx="50" cy="55" rx="13" ry="6" fill="#86a96a" opacity="0.85" transform="rotate(35, 50, 55)" />
-              <ellipse cx="50" cy="75" rx="14" ry="6" fill="#86a96a" opacity="0.85" transform="rotate(-30, 50, 75)" />
-              <ellipse cx="50" cy="95" rx="12" ry="5" fill="#86a96a" opacity="0.85" transform="rotate(28, 50, 95)" />
-            </svg>
-          </div>
-        );
-      }
-
-      if (dec === 'tag-color') {
-        const fillHue = [220, 30, 150, 350][seed % 4];
-        const fillSat = [40, 55, 35, 45][seed % 4];
-        return (
-          <div
-            class={`hcard hcard-deco hcard-tag-color hcard-size-${it.size}`}
-            style={`${style} --tag-bg: hsl(${fillHue}, ${fillSat}%, 38%);`}
-            aria-hidden="true"
-          >
-            <span class={`hcard-clip hcard-clip-${it.clip}`} aria-hidden="true"></span>
-            <svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
-              <path d="M10,15 Q22,12 38,14 T 70,13 T 90,15" stroke="rgba(255,255,255,0.6)" stroke-width="0.5" fill="none" stroke-linecap="round" />
-              <path d="M10,25 Q22,22 38,24 T 70,23 T 85,25" stroke="rgba(255,255,255,0.55)" stroke-width="0.5" fill="none" stroke-linecap="round" />
-              <path d="M10,35 Q22,32 38,34 T 65,33" stroke="rgba(255,255,255,0.5)" stroke-width="0.5" fill="none" stroke-linecap="round" />
-              <path d="M10,45 Q20,42 35,44 T 60,45" stroke="rgba(255,255,255,0.45)" stroke-width="0.5" fill="none" stroke-linecap="round" />
-            </svg>
-          </div>
-        );
-      }
-
-      return null;
-    })}
-
-    {/* 浮动 CTA */}
     <a href={`${base}/create/`} class="wall-cta">
       <span class="wall-cta-line">这面墙还有地方</span>
       <span class="wall-cta-main">挂一张属于你的 →</span>
     </a>
   </div>
+
+  <script is:inline>
+    // 鼠标滚轮垂直 → 横向滚动
+    document.querySelectorAll('.rope-track').forEach((track) => {
+      track.addEventListener(
+        'wheel',
+        (e) => {
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            e.preventDefault();
+            track.scrollLeft += e.deltaY;
+          }
+        },
+        { passive: false }
+      );
+    });
+  </script>
 </Layout>
 
 <style>
@@ -289,15 +280,19 @@ for (let r = 0; r < ROPES; r++) {
     margin-left: calc(-50vw + 50%);
     margin-right: calc(-50vw + 50%);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding: 4.5rem 0 3.5rem;
   }
 
   /* ─── 标题 ─────────────────────────────────────── */
   .wall-title {
     position: absolute;
-    top: 1.25rem;
+    top: 1.1rem;
     left: 1.75rem;
     z-index: 10;
-    max-width: 26em;
+    max-width: 30em;
     pointer-events: none;
   }
   .page-tagline {
@@ -308,7 +303,7 @@ for (let r = 0; r < ROPES; r++) {
     margin: 0 0 0.3rem;
   }
   .wall-title h1 {
-    font-size: 1.6rem;
+    font-size: 1.55rem;
     margin: 0 0 0.3rem;
     font-weight: 500;
     color: #3d2f18;
@@ -316,15 +311,27 @@ for (let r = 0; r < ROPES; r++) {
   .title-meta {
     color: #6e5836;
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-family: var(--font-sans);
   }
 
-  /* ─── 绳子 ─────────────────────────────────────── */
+  /* ─── 绳子 lane: 横向滚动 ────────────────────────── */
+  .rope-lane {
+    position: relative;
+    flex: 1;
+    min-height: 200px;
+    max-height: 32%;
+    /* 左右淡出 mask 提示有更多内容 */
+    mask-image: linear-gradient(to right, transparent 0%, #000 4%, #000 96%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 4%, #000 96%, transparent 100%);
+  }
+
+  /* 绳子 line: 顶部 fixed, 不滚动 */
   .rope-line {
     position: absolute;
-    left: -3%;
-    width: 106%;
+    top: 16px;
+    left: -2%;
+    width: 104%;
     height: 36px;
     color: #6e5028;
     opacity: 0.6;
@@ -333,28 +340,60 @@ for (let r = 0; r < ROPES; r++) {
     pointer-events: none;
   }
 
+  /* track: 横向滚动 */
+  .rope-track {
+    position: absolute;
+    inset: 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    padding: 38px 0 1rem;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(110, 80, 40, 0.25) transparent;
+  }
+  .rope-track::-webkit-scrollbar { height: 6px; }
+  .rope-track::-webkit-scrollbar-track { background: transparent; }
+  .rope-track::-webkit-scrollbar-thumb {
+    background: rgba(110, 80, 40, 0.22);
+    border-radius: 3px;
+  }
+  .rope-track::-webkit-scrollbar-thumb:hover {
+    background: rgba(110, 80, 40, 0.4);
+  }
+
+  /* track 两端 spacer 让首尾不顶到边缘 */
+  .rope-spacer-start, .rope-spacer-end {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 1px;
+  }
+
   /* ─── 物件基础 ──────────────────────────────────── */
   .hcard {
-    position: absolute;
-    transform: translate(-50%, -50%) rotate(var(--rotate, 0deg));
-    transform-origin: center top;
+    flex-shrink: 0;
+    position: relative;
+    transform: translateY(var(--y, 0)) rotate(var(--rotate, 0deg));
+    transform-origin: top center;
     box-shadow:
       0 1px 0 rgba(0, 0, 0, 0.04),
       0 4px 9px rgba(80, 50, 20, 0.1),
       0 14px 26px rgba(80, 50, 20, 0.12);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-                box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-                z-index 0s linear 0.4s;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                z-index 0s linear 0.35s;
     opacity: 0;
-    animation: hcard-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) var(--enter-delay, 0s) forwards;
+    animation: hcard-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) var(--enter-delay, 0s) forwards;
     z-index: 2;
   }
   @keyframes hcard-in {
-    0% { opacity: 0; transform: translate(-50%, -40%) rotate(var(--rotate, 0deg)); }
-    100% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--rotate, 0deg)); }
+    0% { opacity: 0; transform: translateY(calc(var(--y, 0) - 10px)) rotate(var(--rotate, 0deg)); }
+    100% { opacity: 1; transform: translateY(var(--y, 0)) rotate(var(--rotate, 0deg)); }
   }
 
-  /* ─── 真画板卡(可点击) ───────────────────────── */
+  /* ─── 真画板卡 ───────────────────────────────────── */
   .hcard-real {
     color: #2d2418;
     text-decoration: none !important;
@@ -367,19 +406,19 @@ for (let r = 0; r < ROPES; r++) {
     cursor: pointer;
   }
   .hcard-real:hover {
-    transform: translate(-50%, calc(-50% - 6px)) rotate(0deg);
+    transform: translateY(calc(var(--y, 0px) - 8px)) rotate(0deg) scale(1.15);
     box-shadow:
-      0 2px 0 rgba(0, 0, 0, 0.05),
-      0 12px 22px rgba(80, 50, 20, 0.18),
-      0 24px 44px rgba(80, 50, 20, 0.2);
+      0 4px 0 rgba(0, 0, 0, 0.05),
+      0 18px 30px rgba(80, 50, 20, 0.22),
+      0 32px 56px rgba(80, 50, 20, 0.2);
     z-index: 100;
     transition-delay: 0s;
   }
 
-  /* 卡片 sizes (适用所有 hcard) */
-  .hcard-size-s { width: 140px; padding: 1.2rem 0.9rem 0.9rem; }
-  .hcard-size-m { width: 175px; padding: 1.45rem 1.1rem 1rem; }
-  .hcard-size-l { width: 210px; padding: 1.7rem 1.3rem 1.2rem; }
+  /* sizes - 三档差异更明显 */
+  .hcard-size-s { width: 130px; padding: 1.1rem 0.85rem 0.9rem; }
+  .hcard-size-m { width: 175px; padding: 1.45rem 1.1rem 1.05rem; }
+  .hcard-size-l { width: 220px; padding: 1.75rem 1.35rem 1.25rem; }
 
   /* ─── 真画板内容 ──────────────────────────────── */
   .hcard-real .hcard-emoji {
@@ -425,20 +464,15 @@ for (let r = 0; r < ROPES; r++) {
     opacity: 0.85;
   }
 
-  /* ─── 装饰物件(不可点) ─────────────────────────── */
-  .hcard-deco {
-    cursor: default;
-    background: #fbf6e6;
-  }
+  /* ─── 装饰物件 ───────────────────────────────────── */
+  .hcard-deco { cursor: default; background: #fbf6e6; }
   .hcard-deco:hover {
-    transform: translate(-50%, calc(-50% - 3px)) rotate(0deg);
+    transform: translateY(calc(var(--y, 0px) - 4px)) rotate(0deg) scale(1.08);
     z-index: 50;
     transition-delay: 0s;
   }
-
-  /* photo: 米白纸框 + 内嵌图 */
   .hcard-photo {
-    padding: 0.6rem 0.6rem 1.2rem !important;
+    padding: 0.55rem 0.55rem 1.1rem !important;
     background: #fbf8ec;
   }
   .photo-frame {
@@ -453,51 +487,33 @@ for (let r = 0; r < ROPES; r++) {
     aspect-ratio: 4/5;
     object-fit: cover;
   }
-
-  /* handwritten: 米白纸 + SVG 假笔迹 */
   .hcard-handwritten {
-    padding: 0.8rem 0.7rem !important;
+    padding: 0.75rem 0.65rem !important;
     background: #f7f0db;
     aspect-ratio: 3/4;
   }
-  .hw-lines {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
-  /* watercolor: 纸 + SVG 水彩色块 */
+  .hw-lines { width: 100%; height: 100%; display: block; }
   .hcard-watercolor {
-    padding: 0.7rem !important;
+    padding: 0.65rem !important;
     background: #fdf9eb;
     aspect-ratio: 5/4;
   }
-  .hcard-watercolor svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
-  /* collage: 几何拼贴 */
+  .hcard-watercolor svg { width: 100%; height: 100%; display: block; }
   .hcard-collage {
-    padding: 0.6rem !important;
+    padding: 0.55rem !important;
     background: #fbf8ec;
     aspect-ratio: 4/5;
   }
   .hcard-collage svg { width: 100%; height: 100%; display: block; }
-
-  /* botanical: 干花/植物 */
   .hcard-botanical {
-    padding: 0.6rem !important;
+    padding: 0.55rem !important;
     background: #f9f5e3;
     aspect-ratio: 3/5;
-    width: 80px !important;
+    width: 75px !important;
   }
   .hcard-botanical svg { width: 100%; height: 100%; display: block; }
-
-  /* tag-color: 深色色块标签 */
   .hcard-tag-color {
-    padding: 1rem 0.8rem !important;
+    padding: 0.95rem 0.75rem !important;
     background: var(--tag-bg, #3a5070) !important;
     aspect-ratio: 5/3;
   }
@@ -532,7 +548,7 @@ for (let r = 0; r < ROPES; r++) {
   .hcard-note .hcard-text { color: #5d4014; }
   .hcard-note .hcard-name { color: #3d2a0a; }
 
-  /* theme accent for real boards */
+  /* theme accents for real boards */
   .hcard-real[data-theme="soft"] { background-color: #f2eaf2; }
   .hcard-real[data-theme="soft"] .hcard-text { color: #4a3358; }
   .hcard-real[data-theme="soft"] .hcard-name { color: #382048; }
@@ -551,7 +567,6 @@ for (let r = 0; r < ROPES; r++) {
     transform: translateX(-50%);
     z-index: 3;
   }
-  /* binder clip(黑色,主导) */
   .hcard-clip-binder {
     width: 18px;
     height: 13px;
@@ -571,30 +586,22 @@ for (let r = 0; r < ROPES; r++) {
   }
   .hcard-clip-binder::before { left: -1px; transform: rotate(-22deg); transform-origin: bottom right; }
   .hcard-clip-binder::after { right: -1px; transform: rotate(22deg); transform-origin: bottom left; }
-  /* 木夹 */
   .hcard-clip-wood {
-    width: 14px;
-    height: 20px;
+    width: 14px; height: 20px;
     background: linear-gradient(to bottom, #c4995a 0%, #9a7338 45%, #6d4f1f 100%);
     border-radius: 2px 2px 1px 1px;
     box-shadow: 0 3px 5px rgba(60, 40, 15, 0.4);
   }
   .hcard-clip-wood::after {
-    content: '';
-    position: absolute;
-    top: 6px; left: 50%; transform: translateX(-50%);
-    width: 7px; height: 1.5px;
-    background: rgba(50, 30, 10, 0.4);
-    border-radius: 1px;
+    content: ''; position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+    width: 7px; height: 1.5px; background: rgba(50, 30, 10, 0.4); border-radius: 1px;
   }
-  /* 金属夹 */
   .hcard-clip-metal {
     width: 11px; height: 16px;
     background: linear-gradient(to bottom, #e5e5e5 0%, #a8a8a8 50%, #6e6e6e 100%);
     border-radius: 1px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
-  /* 图钉 */
   .hcard-clip-pin {
     width: 13px; height: 13px;
     background: radial-gradient(circle at 30% 30%, #ef7e5a 0%, #c44c2c 55%, #7a2a15 100%);
@@ -602,17 +609,17 @@ for (let r = 0; r < ROPES; r++) {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
   }
 
-  /* ─── 浮动 CTA(右下角) ──────────────────────────── */
+  /* ─── 浮动 CTA ────────────────────────────────── */
   .wall-cta {
     position: absolute;
-    bottom: 1.5rem;
-    right: 1.75rem;
+    bottom: 1.25rem;
+    right: 1.5rem;
     z-index: 20;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: 0.2rem;
-    padding: 0.8rem 1.35rem;
+    padding: 0.75rem 1.3rem;
     background: #c4732c;
     color: #fff8e8 !important;
     border-radius: 14px;
@@ -629,45 +636,40 @@ for (let r = 0; r < ROPES; r++) {
   .wall-cta-line {
     font-style: italic;
     font-family: var(--font-hand);
-    font-size: 0.85rem;
-    opacity: 0.9;
+    font-size: 0.82rem;
+    opacity: 0.92;
     line-height: 1.2;
   }
   .wall-cta-main {
     font-weight: 600;
-    font-size: 0.98rem;
+    font-size: 0.95rem;
     line-height: 1.2;
   }
 
-  /* ─── Mobile fallback ───────────────────────────── */
+  /* ─── Mobile fallback ──────────────────────────── */
   @media (max-width: 740px) {
     .wall-immersive {
       width: 100%;
       height: auto;
       min-height: calc(100vh - 70px);
-      padding: 4.5rem 1rem 4rem;
+      padding: 4rem 0.5rem 4rem;
       margin: 0;
     }
-    .wall-title { position: static; text-align: center; margin: 0 auto 2rem; max-width: none; }
-    .wall-title h1 { font-size: 1.5rem; }
-    .rope-line { display: none; }
-    .hcard {
-      position: relative !important;
-      top: auto !important;
-      left: auto !important;
-      transform: rotate(var(--rotate, 0deg)) !important;
+    .wall-title {
+      position: static;
+      text-align: center;
       margin: 0 auto 1.5rem;
-      display: inline-block;
-      animation: none;
-      opacity: 1;
+      padding: 0 1rem;
+      max-width: none;
     }
-    .hcard:hover { transform: rotate(0deg) !important; }
-    @keyframes hcard-in { from, to { opacity: 1; transform: rotate(var(--rotate, 0deg)); } }
-    .wall-cta { position: fixed; bottom: 1rem; right: 1rem; transform: rotate(-2deg); }
+    .wall-title h1 { font-size: 1.5rem; }
+    .rope-lane { min-height: 200px; }
   }
-
   @media (prefers-reduced-motion: reduce) {
     .hcard { animation: none !important; opacity: 1 !important; }
-    .hcard-real:hover { transform: translate(-50%, -50%) rotate(0deg); }
+    .hcard-real:hover, .hcard-deco:hover {
+      transform: translateY(var(--y, 0)) rotate(var(--rotate, 0deg));
+    }
+    .rope-track { scroll-behavior: auto; }
   }
 </style>
