@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="gt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b4a12"/>
+      <stop offset="0.10" stop-color="#fff1bf"/>
+      <stop offset="0.38" stop-color="#e6bc4e"/>
+      <stop offset="0.70" stop-color="#a8781f"/>
+      <stop offset="1" stop-color="#4f380e"/>
+    </linearGradient>
+    <linearGradient id="gb" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#6b4a12"/>
+      <stop offset="0.10" stop-color="#fff1bf"/>
+      <stop offset="0.38" stop-color="#e6bc4e"/>
+      <stop offset="0.70" stop-color="#a8781f"/>
+      <stop offset="1" stop-color="#4f380e"/>
+    </linearGradient>
+    <linearGradient id="gl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6b4a12"/>
+      <stop offset="0.10" stop-color="#fff1bf"/>
+      <stop offset="0.38" stop-color="#e6bc4e"/>
+      <stop offset="0.70" stop-color="#a8781f"/>
+      <stop offset="1" stop-color="#4f380e"/>
+    </linearGradient>
+    <linearGradient id="gr" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#6b4a12"/>
+      <stop offset="0.10" stop-color="#fff1bf"/>
+      <stop offset="0.38" stop-color="#e6bc4e"/>
+      <stop offset="0.70" stop-color="#a8781f"/>
+      <stop offset="1" stop-color="#4f380e"/>
+    </linearGradient>
+    <radialGradient id="cg" cx="0.35" cy="0.35" r="0.8">
+      <stop offset="0" stop-color="#fce9a8"/>
+      <stop offset="0.5" stop-color="#d4a836"/>
+      <stop offset="1" stop-color="#7a5410"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 四条边斜面 -->
+  <rect x="0" y="0" width="100" height="22" fill="url(#gt)"/>
+  <rect x="0" y="78" width="100" height="22" fill="url(#gb)"/>
+  <rect x="0" y="0" width="22" height="100" fill="url(#gl)"/>
+  <rect x="78" y="0" width="22" height="100" fill="url(#gr)"/>
+
+  <!-- 外缘高光描边 -->
+  <rect x="0.6" y="0.6" width="98.8" height="98.8" fill="none" stroke="#fff3c8" stroke-width="1.1" opacity="0.7"/>
+  <!-- 内口暗槽 + 内缘高光(强化立体) -->
+  <rect x="22" y="22" width="56" height="56" fill="none" stroke="#3f2c08" stroke-width="1.6"/>
+  <rect x="23.4" y="23.4" width="53.2" height="53.2" fill="none" stroke="#ffe9a0" stroke-width="0.7" opacity="0.8"/>
+
+  <!-- 四角卷草雕花 -->
+  <g stroke="#5c3f0e" stroke-width="0.5">
+    <!-- 左上 -->
+    <g>
+      <path d="M3,11 Q3,3 11,3 Q7,3 7,7 Q7,11 3,11 Z" fill="url(#cg)"/>
+      <path d="M11,3 Q19,3.5 18.5,10 Q17,6 12,7 Z" fill="url(#cg)" opacity="0.9"/>
+      <path d="M3,11 Q3.5,19 10,18.5 Q6,17 7,12 Z" fill="url(#cg)" opacity="0.9"/>
+      <circle cx="7" cy="7" r="1.6" fill="#7a5410"/>
+    </g>
+    <!-- 右上 -->
+    <g transform="translate(100,0) scale(-1,1)">
+      <path d="M3,11 Q3,3 11,3 Q7,3 7,7 Q7,11 3,11 Z" fill="url(#cg)"/>
+      <path d="M11,3 Q19,3.5 18.5,10 Q17,6 12,7 Z" fill="url(#cg)" opacity="0.9"/>
+      <path d="M3,11 Q3.5,19 10,18.5 Q6,17 7,12 Z" fill="url(#cg)" opacity="0.9"/>
+      <circle cx="7" cy="7" r="1.6" fill="#7a5410"/>
+    </g>
+    <!-- 左下 -->
+    <g transform="translate(0,100) scale(1,-1)">
+      <path d="M3,11 Q3,3 11,3 Q7,3 7,7 Q7,11 3,11 Z" fill="url(#cg)"/>
+      <path d="M11,3 Q19,3.5 18.5,10 Q17,6 12,7 Z" fill="url(#cg)" opacity="0.9"/>
+      <path d="M3,11 Q3.5,19 10,18.5 Q6,17 7,12 Z" fill="url(#cg)" opacity="0.9"/>
+      <circle cx="7" cy="7" r="1.6" fill="#7a5410"/>
+    </g>
+    <!-- 右下 -->
+    <g transform="translate(100,100) scale(-1,-1)">
+      <path d="M3,11 Q3,3 11,3 Q7,3 7,7 Q7,11 3,11 Z" fill="url(#cg)"/>
+      <path d="M11,3 Q19,3.5 18.5,10 Q17,6 12,7 Z" fill="url(#cg)" opacity="0.9"/>
+      <path d="M3,11 Q3.5,19 10,18.5 Q6,17 7,12 Z" fill="url(#cg)" opacity="0.9"/>
+      <circle cx="7" cy="7" r="1.6" fill="#7a5410"/>
+    </g>
+  </g>
+
+  <!-- 四边中点小宝石装饰(巴洛克 cartouche) -->
+  <g>
+    <ellipse cx="50" cy="11" rx="4" ry="2.6" fill="url(#cg)" stroke="#5c3f0e" stroke-width="0.4"/>
+    <ellipse cx="50" cy="89" rx="4" ry="2.6" fill="url(#cg)" stroke="#5c3f0e" stroke-width="0.4"/>
+    <ellipse cx="11" cy="50" rx="2.6" ry="4" fill="url(#cg)" stroke="#5c3f0e" stroke-width="0.4"/>
+    <ellipse cx="89" cy="50" rx="2.6" ry="4" fill="url(#cg)" stroke="#5c3f0e" stroke-width="0.4"/>
+  </g>
+</svg>

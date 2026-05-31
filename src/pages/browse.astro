@@ -490,55 +490,35 @@ const LEVEL_LABEL = { 1: '初级 · 便签', 2: '中级 · 相框', 3: '高级 �
     box-shadow: inset 0 0 0 1px #d3c4a0;
   }
 
-  /* ─ Lv2 中级: 木框 + 白卡纸 mat ─ */
+  /* ─ Lv2 中级: 木框 (SVG border-image) + 白卡纸 mat ─ */
   .frame-l2 {
-    padding: 9px;
-    border-radius: 2px;
-    box-shadow: 0 7px 18px rgba(80, 50, 20, 0.25), inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+    border: 13px solid transparent;
+    border-image: url("/frames/frame-wood.svg") 16 / 13px stretch;
+    background: #fdfaf0;
+    box-shadow: 0 8px 20px rgba(80, 50, 20, 0.3);
   }
-  .frame-l2.frame-v0 { background: linear-gradient(135deg, #a78048 0%, #7d5c30 50%, #8d6a38 100%); }
-  .frame-l2.frame-v1 { background: linear-gradient(135deg, #3e3e3e 0%, #1f1f1f 50%, #333 100%); }
-  .frame-l2.frame-v2 { background: linear-gradient(135deg, #cbb98a 0%, #a8915c 50%, #b8a268 100%); }
   .frame-l2 .frame-mat {
     display: block;
     background: #fdfaf0;
-    padding: 7px;
+    padding: 6px;
     box-shadow: inset 0 0 7px rgba(0, 0, 0, 0.08);
   }
 
-  /* ─ Lv3 高级: 华丽金框 + 卡纸 + 四角花 ─ */
+  /* ─ Lv3 高级: 华丽金框 (SVG border-image) + 卡纸 ─ */
   .frame-l3 {
-    padding: 13px;
-    border-radius: 3px;
-    box-shadow:
-      0 12px 30px rgba(80, 50, 10, 0.4),
-      inset 0 0 0 2px rgba(150, 110, 25, 0.5),
-      inset 0 2px 5px rgba(255, 240, 180, 0.55);
+    border: 17px solid transparent;
+    border-image: url("/frames/frame-gold.svg") 22 / 17px stretch;
+    background: #fdfaf0;
+    box-shadow: 0 14px 34px rgba(80, 50, 10, 0.42);
   }
-  .frame-l3.frame-v0 { background: linear-gradient(135deg, #f7e08a 0%, #cf9f37 22%, #f5d77a 44%, #b8851f 66%, #f0cd66 88%, #c9962f 100%); }
-  .frame-l3.frame-v1 { background: linear-gradient(135deg, #f3e3b0 0%, #c8a24a 25%, #e9d488 50%, #a8842e 75%, #ddc370 100%); }
-  .frame-l3.frame-v2 { background: linear-gradient(135deg, #f5d77a 0%, #b8851f 30%, #f7e08a 60%, #cf9f37 100%); }
   .frame-l3 .frame-mat {
     display: block;
     background: #fdfaf0;
-    padding: 9px;
+    padding: 7px;
     box-shadow: inset 0 0 10px rgba(120, 80, 20, 0.16);
-    position: relative;
-    z-index: 1;
   }
-  .frame-corner {
-    position: absolute;
-    width: 17px;
-    height: 17px;
-    z-index: 3;
-    background: radial-gradient(circle at 40% 40%, #fce9a8 0%, #d4a836 50%, #8a5f15 100%);
-    border-radius: 65% 0 65% 0;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  }
-  .frame-corner.tl { top: 3px; left: 3px; }
-  .frame-corner.tr { top: 3px; right: 3px; transform: rotate(90deg); }
-  .frame-corner.br { bottom: 3px; right: 3px; transform: rotate(180deg); }
-  .frame-corner.bl { bottom: 3px; left: 3px; transform: rotate(270deg); }
+  /* 角花已经在金框 SVG 里画好,隐藏旧的 CSS 角花 */
+  .frame-corner { display: none; }
 
   /* theme accent on window */
   .frame[data-theme="soft"] .frame-window { background-color: #f2eaf2; }

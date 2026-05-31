@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="wt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a4022"/>
+      <stop offset="0.12" stop-color="#c69a5e"/>
+      <stop offset="0.45" stop-color="#9a6f3c"/>
+      <stop offset="0.78" stop-color="#7a5026"/>
+      <stop offset="1" stop-color="#4a3018"/>
+    </linearGradient>
+    <linearGradient id="wb" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#5a4022"/>
+      <stop offset="0.12" stop-color="#c69a5e"/>
+      <stop offset="0.45" stop-color="#9a6f3c"/>
+      <stop offset="0.78" stop-color="#7a5026"/>
+      <stop offset="1" stop-color="#4a3018"/>
+    </linearGradient>
+    <linearGradient id="wl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5a4022"/>
+      <stop offset="0.12" stop-color="#c69a5e"/>
+      <stop offset="0.45" stop-color="#9a6f3c"/>
+      <stop offset="0.78" stop-color="#7a5026"/>
+      <stop offset="1" stop-color="#4a3018"/>
+    </linearGradient>
+    <linearGradient id="wr" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#5a4022"/>
+      <stop offset="0.12" stop-color="#c69a5e"/>
+      <stop offset="0.45" stop-color="#9a6f3c"/>
+      <stop offset="0.78" stop-color="#7a5026"/>
+      <stop offset="1" stop-color="#4a3018"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 四条边木纹斜面 -->
+  <rect x="0" y="0" width="100" height="16" fill="url(#wt)"/>
+  <rect x="0" y="84" width="100" height="16" fill="url(#wb)"/>
+  <rect x="0" y="0" width="16" height="100" fill="url(#wl)"/>
+  <rect x="84" y="0" width="16" height="100" fill="url(#wr)"/>
+
+  <!-- 45° 拼角接缝 -->
+  <g stroke="#3a2812" stroke-width="0.6" opacity="0.55">
+    <line x1="0" y1="0" x2="16" y2="16"/>
+    <line x1="100" y1="0" x2="84" y2="16"/>
+    <line x1="0" y1="100" x2="16" y2="84"/>
+    <line x1="100" y1="100" x2="84" y2="84"/>
+  </g>
+
+  <!-- 外缘微高光 + 内口暗槽 -->
+  <rect x="0.5" y="0.5" width="99" height="99" fill="none" stroke="#d8b888" stroke-width="0.8" opacity="0.5"/>
+  <rect x="16" y="16" width="68" height="68" fill="none" stroke="#3a2812" stroke-width="1.3"/>
+  <rect x="17.2" y="17.2" width="65.6" height="65.6" fill="none" stroke="#c69a5e" stroke-width="0.6" opacity="0.6"/>
+
+  <!-- 木纹细线 -->
+  <g stroke="#6b4a26" stroke-width="0.35" opacity="0.4" fill="none">
+    <path d="M0,5 H100"/>
+    <path d="M0,11 H100"/>
+    <path d="M0,89 H100"/>
+    <path d="M0,95 H100"/>
+    <path d="M5,0 V100"/>
+    <path d="M11,0 V100"/>
+    <path d="M89,0 V100"/>
+    <path d="M95,0 V100"/>
+  </g>
+</svg>
