@@ -73,6 +73,9 @@ function styleForItem(item, ropeIdx, posIdx) {
     enterDelay: (ropeIdx * 5 + posIdx) * 0.04,
   };
 }
+
+// 把 boards 序列化嵌入到页面,供 lightbox 展开使用
+const boardsJson = JSON.stringify(boards).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 ---
 <Layout title="所有画板" noFooter>
   <div class="wall-bg"></div>
@@ -116,8 +119,9 @@ function styleForItem(item, ropeIdx, posIdx) {
                   href={`${base}/boards/${board.slug}/`}
                   class={`hcard hcard-real hcard-${s.shape} hcard-size-${s.size}`}
                   data-theme={board.theme}
+                  data-slug={board.slug}
                   style={itemStyle}
-                  aria-label={`看 ${board.name} 的画板`}
+                  aria-label={`展开 ${board.name} 的画板`}
                 >
                   <span class={`hcard-clip hcard-clip-${s.clip}`} aria-hidden="true"></span>
                   <span class="hcard-emoji" aria-hidden="true">{board.emoji}</span>
@@ -231,20 +235,153 @@ function styleForItem(item, ropeIdx, posIdx) {
     </a>
   </div>
 
+  {/* ─── Lightbox modal: 点击画框展开 ─── */}
+  <div id="expand-overlay" hidden>
+    <div class="expand-backdrop" data-close></div>
+    <article class="expand-card" id="expand-card" role="dialog" aria-modal="true" aria-labelledby="expand-name">
+      <button class="expand-close" data-close type="button" aria-label="关闭">✕</button>
+      <div class="expand-inner" id="expand-inner">
+        {/* 内容由 JS 动态填充 */}
+      </div>
+    </article>
+  </div>
+
+  <script type="application/json" id="boards-json" set:html={boardsJson} />
+
   <script is:inline>
-    // 鼠标滚轮垂直 → 横向滚动
-    document.querySelectorAll('.rope-track').forEach((track) => {
-      track.addEventListener(
-        'wheel',
-        (e) => {
-          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-            e.preventDefault();
-            track.scrollLeft += e.deltaY;
-          }
-        },
-        { passive: false }
-      );
-    });
+    (function () {
+      // ─── 1. 鼠标滚轮垂直 → 横向滚动 ───
+      document.querySelectorAll('.rope-track').forEach((track) => {
+        track.addEventListener(
+          'wheel',
+          (e) => {
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+              e.preventDefault();
+              track.scrollLeft += e.deltaY;
+            }
+          },
+          { passive: false }
+        );
+      });
+
+      // ─── 2. Lightbox 展开 ───
+      var boardsData = [];
+      try {
+        boardsData = JSON.parse(document.getElementById('boards-json').textContent);
+      } catch (e) {
+        console.error('parse boards-json failed', e);
+      }
+      var overlay = document.getElementById('expand-overlay');
+      var inner = document.getElementById('expand-inner');
+      var cardEl = document.getElementById('expand-card');
+      var lastFocus = null;
+
+      function esc(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function renderExpanded(board) {
+        var parts = [];
+        parts.push('<header class="ec-head">');
+        parts.push('<div class="ec-emoji-wrap"><span class="ec-emoji">' + esc(board.emoji) + '</span></div>');
+        parts.push('<h2 class="ec-name" id="expand-name">' + esc(board.name) + '</h2>');
+        if (board.tags && board.tags.length) {
+          parts.push('<div class="ec-tags">' + board.tags.map(function (t) {
+            return '<span class="ec-tag">#' + esc(t) + '</span>';
+          }).join('') + '</div>');
+        }
+        if (board.mood_today) {
+          parts.push('<p class="ec-mood"><span class="ec-mood-label">写下这块板子那天的心情</span><span class="ec-mood-value">' + esc(board.mood_today) + '</span></p>');
+        }
+        parts.push('</header>');
+
+        if (board.to_self && board.to_self.length) {
+          parts.push('<section class="ec-block"><h3 class="ec-block-head">给自己</h3>');
+          board.to_self.forEach(function (t) {
+            parts.push('<blockquote class="ec-quote ec-self"><p>' + esc(t) + '</p></blockquote>');
+          });
+          parts.push('</section>');
+        }
+
+        if (board.image && board.image.src) {
+          parts.push('<figure class="ec-image"><img src="' + esc(board.image.src) + '" alt="' + esc(board.image.alt || '') + '" loading="lazy"/>');
+          if (board.image.alt) parts.push('<figcaption>' + esc(board.image.alt) + '</figcaption>');
+          parts.push('</figure>');
+        }
+
+        if (board.to_strangers && board.to_strangers.length) {
+          parts.push('<section class="ec-block"><h3 class="ec-block-head">给你 <span class="ec-block-sub">— 这个我永远不会认识, 但今天恰好走到这里的你</span></h3>');
+          board.to_strangers.forEach(function (t) {
+            parts.push('<blockquote class="ec-quote ec-stranger"><p>' + esc(t) + '</p></blockquote>');
+          });
+          parts.push('</section>');
+        }
+
+        if (board.song && board.song.url) {
+          parts.push('<aside class="ec-song">');
+          parts.push('<p class="ec-block-head">' + esc(board.name) + ' 留下的一首歌</p>');
+          if (board.song.title) parts.push('<p class="ec-song-title">' + esc(board.song.title) + '</p>');
+          if (board.song.why) parts.push('<blockquote class="ec-quote ec-stranger"><p>' + esc(board.song.why) + '</p></blockquote>');
+          parts.push('<p class="ec-song-link"><a href="' + esc(board.song.url) + '" target="_blank" rel="noopener nofollow">在原平台听 →</a></p>');
+          parts.push('</aside>');
+        }
+
+        if (board.link) {
+          parts.push('<p class="ec-link"><a href="' + esc(board.link) + '" target="_blank" rel="noopener nofollow">' + esc(board.link) + ' →</a></p>');
+        }
+
+        parts.push('<footer class="ec-footer"><a href="/boards/' + esc(board.slug) + '/" class="ec-permalink">看完整页面 →</a></footer>');
+        return parts.join('');
+      }
+
+      function open(slug) {
+        var board = boardsData.find(function (b) { return b.slug === slug; });
+        if (!board) return;
+        lastFocus = document.activeElement;
+        cardEl.dataset.theme = board.theme;
+        inner.innerHTML = renderExpanded(board);
+        cardEl.scrollTop = 0;
+        overlay.hidden = false;
+        document.body.classList.add('overlay-open');
+        // trigger transition
+        requestAnimationFrame(function () {
+          overlay.classList.add('in');
+          var closeBtn = overlay.querySelector('.expand-close');
+          if (closeBtn) closeBtn.focus();
+        });
+      }
+
+      function close() {
+        overlay.classList.remove('in');
+        document.body.classList.remove('overlay-open');
+        setTimeout(function () {
+          overlay.hidden = true;
+          inner.innerHTML = '';
+          if (lastFocus && lastFocus.focus) lastFocus.focus();
+        }, 320);
+      }
+
+      // 拦截真画板点击
+      document.querySelectorAll('.hcard-real[data-slug]').forEach(function (card) {
+        card.addEventListener('click', function (e) {
+          e.preventDefault();
+          open(card.getAttribute('data-slug'));
+        });
+      });
+
+      // 关闭事件
+      overlay.addEventListener('click', function (e) {
+        if (e.target.dataset && e.target.dataset.close !== undefined) close();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !overlay.hidden) close();
+      });
+    })();
   </script>
 </Layout>
 
@@ -671,5 +808,213 @@ function styleForItem(item, ropeIdx, posIdx) {
       transform: translateY(var(--y, 0)) rotate(var(--rotate, 0deg));
     }
     .rope-track { scroll-behavior: auto; }
+  }
+
+  /* ════════ Lightbox 展开 ════════ */
+
+  /* 景深: overlay 打开时整面墙模糊 + 暗 */
+  :global(body.overlay-open) .wall-immersive,
+  :global(body.overlay-open) .wall-bg {
+    filter: blur(5px) brightness(0.92);
+    transition: filter 0.4s ease;
+  }
+  :global(body.overlay-open) { overflow: hidden; }
+
+  #expand-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.32s ease;
+  }
+  #expand-overlay.in {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .expand-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(28, 18, 8, 0.42);
+    cursor: zoom-out;
+  }
+
+  .expand-card {
+    position: relative;
+    z-index: 1;
+    width: min(52vw, 680px);
+    max-width: 92vw;
+    max-height: 86vh;
+    overflow-y: auto;
+    background: #fbf6e6;
+    background-image:
+      radial-gradient(circle at 13% 17%, rgba(160, 130, 80, 0.04) 0.5px, transparent 1px),
+      radial-gradient(circle at 73% 81%, rgba(160, 130, 80, 0.03) 0.5px, transparent 1px);
+    background-size: 18px 18px, 26px 26px;
+    border-radius: 14px;
+    padding: 2.75rem 2.75rem 2.25rem;
+    box-shadow:
+      0 30px 90px rgba(20, 10, 5, 0.45),
+      0 12px 32px rgba(20, 10, 5, 0.25);
+    transform: scale(0.9) translateY(12px);
+    transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+    color: #2d2418;
+  }
+  #expand-overlay.in .expand-card {
+    transform: scale(1) translateY(0);
+  }
+  @media (max-width: 900px) {
+    .expand-card { width: 88vw; padding: 2.25rem 1.6rem 1.75rem; }
+  }
+
+  .expand-close {
+    position: absolute;
+    top: 0.85rem;
+    right: 0.95rem;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85);
+    color: #5a3f1f;
+    font-size: 1rem;
+    cursor: pointer;
+    z-index: 5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: background 0.2s, transform 0.2s;
+  }
+  .expand-close:hover { background: #fff; transform: rotate(90deg); }
+
+  /* ─── 展开内容样式 ─── */
+  .ec-head { text-align: center; margin-bottom: 2rem; }
+  .ec-emoji-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.85rem;
+  }
+  .ec-emoji {
+    font-size: 2.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.5rem;
+    height: 4.5rem;
+    background: var(--accent-bg, #fdf3ec);
+    border-radius: 50%;
+    line-height: 1;
+  }
+  .ec-name {
+    font-family: var(--font-serif);
+    font-size: 1.9rem;
+    font-weight: 500;
+    margin: 0 0 0.6rem;
+    color: #2d2418;
+  }
+  .ec-tags {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+  }
+  .ec-tag {
+    background: var(--accent-bg, #fdf3ec);
+    color: var(--accent, #c4732c);
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+  }
+  .ec-mood { font-size: 0.85rem; margin: 0.5rem 0 0; font-family: var(--font-sans); }
+  .ec-mood-label { color: #8a6c3e; }
+  .ec-mood-value {
+    color: #2d2418;
+    font-weight: 600;
+    margin-left: 0.4rem;
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+
+  .ec-block { margin: 2rem 0; }
+  .ec-block-head {
+    font-family: var(--font-sans);
+    font-size: 0.74rem;
+    color: #8a6c3e;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-weight: 600;
+    margin: 0 0 1.25rem;
+  }
+  .ec-block-sub {
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-weight: 400;
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 0.78rem;
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+  .ec-quote {
+    margin: 0.7rem 0;
+    padding: 1.2rem 1.5rem;
+    background: rgba(255, 252, 244, 0.6);
+    border-left: 3px solid var(--accent-soft, #f5cbb5);
+    border-radius: 0 12px 12px 0;
+  }
+  .ec-quote p {
+    margin: 0;
+    font-family: var(--font-hand);
+    font-size: 1.25rem;
+    line-height: 1.85;
+    color: #4d381a;
+  }
+  .ec-stranger { border-left-color: var(--accent, #c4732c); }
+  .ec-stranger p { color: var(--accent, #c4732c); }
+
+  .ec-image { margin: 2rem 0; text-align: center; }
+  .ec-image img {
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(80, 50, 20, 0.18);
+  }
+  .ec-image figcaption {
+    margin-top: 0.7rem;
+    font-size: 0.88rem;
+    color: #8a6c3e;
+    font-style: italic;
+    font-family: var(--font-serif);
+  }
+
+  .ec-song { margin: 2rem 0; text-align: center; }
+  .ec-song-title {
+    font-family: var(--font-serif);
+    font-style: italic;
+    color: #5a3f1f;
+    margin: 0 0 0.75rem;
+  }
+  .ec-song-link a, .ec-link a {
+    color: #8a6c3e;
+    font-size: 0.9rem;
+  }
+  .ec-link { text-align: center; margin: 1.5rem 0 0; }
+
+  .ec-footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(110, 80, 40, 0.15);
+    text-align: center;
+  }
+  .ec-permalink {
+    color: var(--accent, #c4732c);
+    font-weight: 600;
+    font-size: 0.92rem;
   }
 </style>
