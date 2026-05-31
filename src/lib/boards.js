@@ -75,6 +75,8 @@ function normalize(data, slug) {
     mood_today: data?.mood_today ? String(data.mood_today).trim() : '',
     image: parseImage(data?.image),
     song: parseSong(data?.song),
+    by: data?.by ? String(data.by).trim().slice(0, 60) : '',
+    level: [1, 2, 3].includes(data?.level) ? data.level : null,
   };
 }
 
@@ -108,11 +110,29 @@ export function getAllBoards() {
     const b = readOneBoard(slug);
     if (b) boards.push(b);
   }
+
+  // 统计每个作者(by 字段)的贡献数
+  const authorCounts = {};
+  for (const b of boards) {
+    if (b.by) authorCounts[b.by] = (authorCounts[b.by] || 0) + 1;
+  }
+
+  // 计算等级:
+  //   手动 level 字段优先;否则按作者贡献数自动解锁
+  //   1 帖 = 初级(1) · 3 帖 = 中级(2) · 5 帖 = 高级(3)
+  for (const b of boards) {
+    const count = b.by ? authorCounts[b.by] || 1 : 1;
+    b.authorPosts = count;
+    if (!b.level) {
+      b.level = count >= 5 ? 3 : count >= 3 ? 2 : 1;
+    }
+  }
+
   return boards;
 }
 
 export function getBoardBySlug(slug) {
-  return readOneBoard(slug);
+  return getAllBoards().find((b) => b.slug === slug) || readOneBoard(slug);
 }
 
 export function getRandomFeatured(count = 3, seed = 0) {

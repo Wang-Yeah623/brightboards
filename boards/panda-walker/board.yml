@@ -1,6 +1,7 @@
 name: "熊猫漫步"
 emoji: "🌱"
 theme: warm
+level: 3
 
 to_self:
   - "今天的我,做到 60% 就够了。"

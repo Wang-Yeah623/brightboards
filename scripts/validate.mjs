@@ -156,6 +156,14 @@ function validateBoard(slug) {
     }
   }
 
+  if (data.level !== undefined && ![1, 2, 3].includes(data.level)) {
+    err(relFile, `level 只能是 1 / 2 / 3 (当前 ${JSON.stringify(data.level)})。一般不用手填,系统会按你的贡献数自动解锁`);
+  }
+
+  if (data.by !== undefined && (typeof data.by !== 'string' || !data.by.trim())) {
+    err(relFile, 'by 应该是一个非空字符串(你的作者标识,如 GitHub 用户名 —— 用它把你的多块画板归到一起算贡献等级)');
+  }
+
   checked++;
 }
 
